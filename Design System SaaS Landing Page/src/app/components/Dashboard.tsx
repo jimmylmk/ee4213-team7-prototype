@@ -262,9 +262,9 @@ export function Dashboard() {
       };
     }
 
-    if (outsideCommitments && inspectorCourse.day === 'Mon' && parseMinutes(inspectorCourse.start) < 13 * 60 && parseMinutes(inspectorCourse.end) > 9 * 60) {
+    if (outsideCommitments && (inspectorCourse.day === 'Mon' || inspectorCourse.day === 'Thu') && parseMinutes(inspectorCourse.start) < 13 * 60 && parseMinutes(inspectorCourse.end) > 9 * 60) {
       return {
-        text: `[SCHEDULE FIT: FITS CLASSES · OVERLAPS TECH PLACEMENT (MON 09:00–13:00)]`,
+        text: `[SCHEDULE FIT: FITS CLASSES · OVERLAPS TECH PLACEMENT (${inspectorCourse.day.toUpperCase()} 09:00–13:00)]`,
         color: 'text-amber-800 bg-amber-50 border-amber-200',
         isAlert: true
       };
