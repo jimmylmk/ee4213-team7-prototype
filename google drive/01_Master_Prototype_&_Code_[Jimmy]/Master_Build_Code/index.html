@@ -1447,6 +1447,34 @@
         grid-template-columns: 1fr;
       }
     }
+
+    /* Toast Notification Engine (N1 / S3) */
+    .toast-container {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      z-index: 120;
+      pointer-events: none;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .toast-pill {
+      background: #1e293b;
+      color: #f8fafc;
+      border: 1px solid #334155;
+      padding: 8px 16px;
+      border-radius: 9999px;
+      font-size: 12px;
+      font-weight: 600;
+      font-family: var(--font-sans);
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+      animation: toastSlideIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    @keyframes toastSlideIn {
+      from { transform: translateY(12px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
   </style>
 </head>
 <body>
@@ -1834,6 +1862,8 @@
     </div>
   </div>
 
+  <div id="toastNotification" class="toast-container" role="status" aria-live="polite"></div>
+
   <!-- Javascript Logic -->
   <script>
     /* ==========================================================================
@@ -2037,8 +2067,22 @@
       highlightBridge: false,
       stagedCandidate: null,
       handoffData: null,
-      initialSnapshot: null
+      initialSnapshot: null,
+      toastTimer: null
     };
+
+    function showToast(msg) {
+      const container = document.getElementById('toastNotification');
+      if (!container) return;
+      if (state.toastTimer) {
+        clearTimeout(state.toastTimer);
+      }
+      container.innerHTML = `<div class="toast-pill">${msg}</div>`;
+      state.toastTimer = setTimeout(() => {
+        container.innerHTML = '';
+        state.toastTimer = null;
+      }, 2500);
+    }
 
     function getCourse(code) {
       return masterSchedule.find(c => c.code === code) || null;
@@ -2679,11 +2723,10 @@
 
         container.querySelectorAll('[data-copy]').forEach(btn => {
           btn.addEventListener('click', () => {
+            const crn = btn.dataset.copy;
             if (navigator.clipboard) {
-              navigator.clipboard.writeText(btn.dataset.copy).then(() => {
-                const orig = btn.textContent;
-                btn.textContent = 'Copied!';
-                setTimeout(() => { btn.textContent = orig; }, 1500);
+              navigator.clipboard.writeText(crn).then(() => {
+                showToast(`[Copied CRN ${crn} to clipboard]`);
               });
             }
           });
