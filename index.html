@@ -1618,6 +1618,13 @@
       .sidebar-footer {
         display: none;
       }
+      .sidebar-home-link {
+        border-bottom: none !important;
+        margin-bottom: 0 !important;
+        padding-bottom: 0 !important;
+        margin-right: 12px;
+        flex-shrink: 0;
+      }
       .nav-menu {
         flex-direction: row;
         gap: 8px;
@@ -1839,6 +1846,13 @@
     
     <!-- Left Navigation Bar -->
     <aside class="app-sidebar" aria-label="Main Navigation">
+      <!-- Sidebar Return to Project Home Button (Prototype v2.1) -->
+      <div class="sidebar-home-link" style="padding-bottom: 12px; margin-bottom: 12px; border-bottom: 1px solid var(--border);">
+        <button id="sidebarReturnHomeBtn" class="btn" style="width: 100%; height: 30px; font-size: 11px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 6px;">
+          &larr; Project Home / Overview
+        </button>
+      </div>
+
       <div>
         <p class="nav-section-title">Engines &amp; Views</p>
         <ul class="nav-menu">
@@ -3300,6 +3314,74 @@
       });
     }
 
+    /* ==========================================================================
+       TOP-LEVEL SPA VIEW ROUTING & HASH NAVIGATION (PROTOTYPE V2.1)
+       ========================================================================== */
+    function updateLandingPageCTA() {
+      const heroBtn = document.getElementById('heroLaunchBtn');
+      if (!heroBtn) return;
+      const isRehearsalActive = state.swapOutId !== null || state.selectedReplacement !== null || state.handoffData !== null;
+      if (isRehearsalActive) {
+        heroBtn.innerHTML = 'Resume Active Rehearsal &rarr; <span style="font-size:11px; opacity:0.85; margin-left:4px;">[In-Progress]</span>';
+      } else {
+        heroBtn.innerHTML = 'Launch Rehearsal Sandbox &rarr;';
+      }
+    }
+
+    function showLandingPage(updateHash = true) {
+      document.getElementById('landingView').style.display = 'block';
+      document.getElementById('dashboardView').style.display = 'none';
+      if (updateHash) {
+        location.hash = '#landing';
+      }
+      updateLandingPageCTA();
+      if (!location.hash || location.hash === '#landing') {
+        window.scrollTo({ top: 0, behavior: 'instant' });
+      }
+    }
+
+    function showDashboard(targetSubView = 'rehearsalView', updateHash = true) {
+      document.getElementById('landingView').style.display = 'none';
+      document.getElementById('dashboardView').style.display = 'flex';
+      switchMainView(targetSubView);
+      renderAll();
+
+      // Subview Lifecycle Initializers (Critical Fix #2)
+      if (targetSubView === 'inspectorView') {
+        const code = state.swapOutId || state.enrolled[0] || 'CS3334';
+        const selectEl = document.getElementById('inspectorCourseSelect');
+        if (selectEl) selectEl.value = code;
+        renderInspectorCourse(code);
+      } else if (targetSubView === 'blogsView') {
+        state.activeBlogPostId = null;
+        renderBlogs();
+      }
+
+      if (updateHash) {
+        location.hash = '#' + targetSubView.replace('View', '');
+      }
+      window.scrollTo({ top: 0, behavior: 'instant' });
+    }
+
+    function handleHashRoute() {
+      const hash = window.location.hash.toLowerCase();
+      if (hash === '#rehearsal') {
+        showDashboard('rehearsalView', false);
+      } else if (hash === '#inspector') {
+        showDashboard('inspectorView', false);
+      } else if (hash === '#blogs') {
+        showDashboard('blogsView', false);
+      } else {
+        showLandingPage(false);
+        if (hash && hash !== '#landing') {
+          const targetEl = document.querySelector(hash);
+          if (targetEl) targetEl.scrollIntoView();
+        }
+      }
+    }
+
+    window.addEventListener('hashchange', handleHashRoute);
+
     function openCourseInInspector(code) {
       switchMainView('inspectorView');
       const selectEl = document.getElementById('inspectorCourseSelect');
@@ -3648,39 +3730,28 @@
       renderCatalogueList();
       renderShortlistTray();
       renderLiveAudit();
+      updateLandingPageCTA();
     }
 
     // View Navigation Tabs
     document.querySelectorAll('.nav-item button').forEach(btn => {
       btn.addEventListener('click', () => {
         const viewId = btn.dataset.view;
-        switchMainView(viewId);
-
-        if (viewId === 'inspectorView') {
-          const currentCode = state.swapOutId || state.enrolled[0];
-          renderInspectorCourse(currentCode);
-        } else if (viewId === 'blogsView') {
-          state.activeBlogPostId = null;
-          renderBlogs();
-        }
+        showDashboard(viewId);
       });
     });
 
     // Quick-Jump Buttons to CityU Blogs
     document.getElementById('jumpToBlogsBtn')?.addEventListener('click', () => {
-      state.activeBlogPostId = null;
-      switchMainView('blogsView');
-      renderBlogs();
+      showDashboard('blogsView');
     });
     document.getElementById('inspOpenAllBlogsBtn')?.addEventListener('click', () => {
-      state.activeBlogPostId = null;
-      switchMainView('blogsView');
-      renderBlogs();
+      showDashboard('blogsView');
     });
 
     // Return to Timetable Breadcrumb Button (N6 / S8)
     document.getElementById('inspBackToTimetableBtn')?.addEventListener('click', () => {
-      switchMainView('rehearsalView');
+      showDashboard('rehearsalView');
     });
 
     // Top Revert & Reset Buttons
@@ -3704,6 +3775,9 @@
       // 1. Search accelerator '/'
       if (e.key === '/' && e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
         e.preventDefault();
+        if (document.getElementById('dashboardView').style.display === 'none') {
+          showDashboard('rehearsalView');
+        }
         const searchInput = document.getElementById('courseSearchInput');
         if (searchInput) {
           searchInput.focus();
@@ -3790,11 +3864,24 @@
       renderInspectorCourse(e.target.value);
     });
 
+    // Landing Page Action Buttons
+    document.getElementById('navLaunchBtn')?.addEventListener('click', () => showDashboard('rehearsalView'));
+    document.getElementById('heroLaunchBtn')?.addEventListener('click', () => showDashboard('rehearsalView'));
+    document.getElementById('heroInspectBtn')?.addEventListener('click', () => showDashboard('inspectorView'));
+    document.getElementById('cardLaunchRehearsalBtn')?.addEventListener('click', () => showDashboard('rehearsalView'));
+    document.getElementById('cardLaunchInspectorBtn')?.addEventListener('click', () => showDashboard('inspectorView'));
+    document.getElementById('cardLaunchBlogsBtn')?.addEventListener('click', () => showDashboard('blogsView'));
+    document.getElementById('personaLaunchBtn')?.addEventListener('click', () => showDashboard('rehearsalView'));
+
+    // Sidebar Return to Landing Page
+    document.getElementById('sidebarReturnHomeBtn')?.addEventListener('click', () => showLandingPage());
+
     // Initial Load
     saveInitialSnapshot();
     renderAll();
     renderBlogs();
     renderInspectorCourse('CS3334');
+    handleHashRoute();
   </script>
 </body>
 </html>
