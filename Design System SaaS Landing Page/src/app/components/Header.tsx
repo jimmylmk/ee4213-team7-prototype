@@ -1,5 +1,6 @@
+import { useState } from "react";
 import { Button } from "./ui/button";
-import { Menu } from "lucide-react";
+import { Menu, X } from "lucide-react";
 import { Link } from "react-router";
 
 export function BrandMark({ inverse = false }: { inverse?: boolean }) {
@@ -14,8 +15,11 @@ export function BrandMark({ inverse = false }: { inverse?: boolean }) {
 }
 
 export function Header() {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
   const scrollTo = (id: string) => (e: React.MouseEvent) => {
     e.preventDefault();
+    setMobileMenuOpen(false);
     const el = document.getElementById(id);
     if (el) el.scrollIntoView({ behavior: "smooth" });
   };
@@ -53,11 +57,63 @@ export function Header() {
           <Button asChild className="bg-[#171717] text-white hover:bg-[#6c4cff] transition-colors">
             <Link to="/dashboard">Launch Sandbox &rarr;</Link>
           </Button>
-          <Button variant="ghost" size="icon" className="md:hidden">
-            <Menu className="h-4 w-4" />
+          <Button
+            variant="ghost"
+            size="icon"
+            className="md:hidden"
+            aria-label="Toggle navigation"
+            aria-expanded={mobileMenuOpen}
+            onClick={() => setMobileMenuOpen((prev) => !prev)}
+          >
+            {mobileMenuOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
           </Button>
         </div>
       </div>
+      {mobileMenuOpen && (
+        <div className="md:hidden border-t bg-background/95 px-4 py-4 space-y-3 backdrop-blur shadow-lg">
+          <nav className="flex flex-col space-y-2 text-sm">
+            <a
+              href="#overview"
+              onClick={scrollTo("overview")}
+              className="px-2 py-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-black/5 transition-colors"
+            >
+              Overview
+            </a>
+            <a
+              href="#capabilities"
+              onClick={scrollTo("capabilities")}
+              className="px-2 py-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-black/5 transition-colors"
+            >
+              Capabilities
+            </a>
+            <a
+              href="#persona"
+              onClick={scrollTo("persona")}
+              className="px-2 py-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-black/5 transition-colors"
+            >
+              Student Persona
+            </a>
+            <a
+              href="#walkthrough"
+              onClick={scrollTo("walkthrough")}
+              className="px-2 py-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-black/5 transition-colors"
+            >
+              Walkthrough
+            </a>
+          </nav>
+          <div className="pt-2 border-t flex flex-col space-y-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full justify-start text-xs font-mono"
+              asChild
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              <Link to="/dashboard?view=inspector">Course Inspector</Link>
+            </Button>
+          </div>
+        </div>
+      )}
     </header>
   );
 }
