@@ -620,13 +620,17 @@ export function Dashboard() {
 
                           {/* Tech Placement Card if applicable */}
                           {hasPlacement && (
-                            <div className="bg-[#fef9c3] border border-[#fde047] text-[#854d0e] p-2.5 rounded-lg text-left shadow-2xs">
-                              <div className="flex items-center justify-between text-[10px] font-mono font-bold">
-                                <span>PLACEMENT</span>
-                                <span>09:00–13:00</span>
+                            <div className="bg-[#fef9c3] border border-[#fde047] text-[#854d0e] p-2.5 rounded-xl text-left shadow-xs">
+                              <div>
+                                <span className="font-mono text-[9px] uppercase font-bold bg-[#fef08a] px-1.5 py-0.5 rounded text-[#854d0e] inline-block">
+                                  [Placement]
+                                </span>
                               </div>
-                              <p className="text-[11px] font-semibold mt-1">Tech Placement</p>
-                              <p className="text-[10px] text-muted-foreground">Off-campus office</p>
+                              <p className="text-xs font-bold text-[#713f12] leading-tight mt-1.5">Tech Placement</p>
+                              <div className="flex items-center justify-between text-[10px] text-[#854d0e]/80 mt-1.5 font-mono pt-1 border-t border-[#fde047]/60">
+                                <span className="whitespace-nowrap font-medium">09:00–13:00</span>
+                                <span className="text-[9px] opacity-75">Office</span>
+                              </div>
                             </div>
                           )}
 
@@ -646,12 +650,12 @@ export function Dashboard() {
                               >
                                 <div className="flex items-center justify-between text-[10px] font-mono">
                                   <span className="font-bold text-[#171717]">{course.code}</span>
-                                  <span className="text-muted-foreground">CRN {course.crn}</span>
+                                  <span className="text-muted-foreground whitespace-nowrap">CRN {course.crn}</span>
                                 </div>
                                 <h4 className="font-semibold text-xs leading-tight mt-1">{course.title}</h4>
                                 <div className="flex items-center justify-between text-[10px] text-muted-foreground mt-2 pt-1 border-t border-black/5 font-mono">
-                                  <span>{course.start}–{course.end}</span>
-                                  <span>{course.credits.toFixed(1)} CR</span>
+                                  <span className="whitespace-nowrap">{course.start}–{course.end}</span>
+                                  <span className="whitespace-nowrap">{course.credits.toFixed(1)} CR</span>
                                 </div>
 
                                 <div className="mt-2">
@@ -685,8 +689,8 @@ export function Dashboard() {
                               </div>
                               <h4 className="font-semibold text-xs leading-tight mt-1">{stagedCourse.title}</h4>
                               <div className="flex items-center justify-between text-[10px] text-muted-foreground mt-2 pt-1 border-t border-black/5 font-mono">
-                                <span>{stagedCourse.start}–{stagedCourse.end}</span>
-                                <span>{stagedCourse.credits.toFixed(1)} CR</span>
+                                <span className="whitespace-nowrap">{stagedCourse.start}–{stagedCourse.end}</span>
+                                <span className="whitespace-nowrap">{stagedCourse.credits.toFixed(1)} CR</span>
                               </div>
                               <div className="mt-2">
                                 <span className="font-mono text-[9px] uppercase font-bold text-[#6c4cff] bg-[#ece9ff] px-1.5 py-0.5 rounded">
