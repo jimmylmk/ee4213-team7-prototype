@@ -1633,7 +1633,7 @@
 
             <!-- Search Bar -->
             <div class="dock-search-box">
-              <input type="search" id="courseSearchInput" class="dock-input" placeholder="Search code, keyword, or weekday (e.g. GE, CS, Mon, Fri)..." aria-label="Search courses">
+              <input type="search" id="courseSearchInput" class="dock-input" placeholder="Search code, keyword, or weekday (Press / to search)..." aria-label="Search courses">
             </div>
 
             <!-- Category Filter Pills -->
@@ -1641,6 +1641,7 @@
               <button class="filter-pill active" data-filter="all">All</button>
               <button class="filter-pill" data-filter="ge">GE Electives</button>
               <button class="filter-pill" data-filter="stem">STEM Major</button>
+              <button class="filter-pill" data-filter="coursework">100% Coursework</button>
               <button class="filter-pill" data-filter="open">Open Quota</button>
               <button class="filter-pill" data-filter="noclash">No Clash</button>
             </div>
@@ -2500,6 +2501,8 @@
         filtered = filtered.filter(c => c.category === 'ge');
       } else if (state.activeFilter === 'stem') {
         filtered = filtered.filter(c => c.category === 'stem');
+      } else if (state.activeFilter === 'coursework') {
+        filtered = filtered.filter(c => c.examPct === 0);
       } else if (state.activeFilter === 'open') {
         filtered = filtered.filter(c => c.quotaAvailable > 0);
       } else if (state.activeFilter === 'noclash') {
@@ -3226,6 +3229,49 @@
     document.getElementById('toggleBridgeFilter').addEventListener('change', (e) => {
       state.highlightBridge = e.target.checked;
       renderCatalogueList();
+    });
+
+    // Global Keyboard Accelerators (N7 / S2 - Important Fix #1)
+    window.addEventListener('keydown', (e) => {
+      // 1. Search accelerator '/'
+      if (e.key === '/' && e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
+        e.preventDefault();
+        const searchInput = document.getElementById('courseSearchInput');
+        if (searchInput) {
+          searchInput.focus();
+          searchInput.select();
+        }
+        return;
+      }
+
+      // 2. Escape priority cascade
+      if (e.key === 'Escape') {
+        const modal = document.getElementById('controlGateModal');
+        // Priority 1: Close modal if open (controlGateModal.classList.contains('open'))
+        if (modal && modal.classList.contains('open')) {
+          e.preventDefault();
+          modal.classList.remove('open');
+          return;
+        }
+        // Priority 2: Unstage ghost preview if active
+        if (state.selectedReplacement !== null) {
+          e.preventDefault();
+          const unstageCode = state.selectedReplacement;
+          state.selectedReplacement = null;
+          showToast(`[Unstaged preview for ${unstageCode}]`);
+          renderAll();
+          return;
+        }
+        // Priority 3: Clear search input if focused or populated
+        const searchInput = document.getElementById('courseSearchInput');
+        if (searchInput && (document.activeElement === searchInput || searchInput.value)) {
+          e.preventDefault();
+          searchInput.value = '';
+          searchInput.blur();
+          renderCatalogueList();
+          return;
+        }
+      }
     });
 
     // Search Input
