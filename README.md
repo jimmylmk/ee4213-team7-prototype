@@ -121,17 +121,28 @@
   - `tests/*.test.mjs` (包含 Tasks 1–8 共 23 個自動化測試單元)
 
 ### 如何啟動 (How to Run)
-本網站無需安裝 Node 模組或架設本機伺服器：
-1. **直接開啟：**
-   使用任何瀏覽器（Google Chrome, Apple Safari, Microsoft Edge）雙擊開啟 [index.html](file:///Users/wat2002221/Desktop/Team%207%20group%20project/index.html)。
-2. **命令列開啟 (macOS)：**
+本專案支援兩種啟動方式（完全無需下載或安裝任何外部 npm 套件）：
+
+1. **方法一：使用 npm 命令啟動（推薦）：**
+   在終端機中執行以下任一指令即可自動啟動伺服器並彈出瀏覽器：
    ```bash
-   open "/Users/wat2002221/Desktop/Team 7 group project/index.html"
+   npm start
+   # 或
+   npm run dev
    ```
+
+2. **方法二：直接開啟單一靜態檔案：**
+   - **滑鼠雙擊：** 使用任何瀏覽器（Chrome, Safari, Edge）直接雙擊開啟 [index.html](file:///Users/wat2002221/Desktop/Team%207%20group%20project/index.html)。
+   - **macOS 命令列開啟：**
+     ```bash
+     open index.html
+     ```
 
 ### 執行自動化測試與驗證
 ```bash
-# 執行全部 23 個自動化測試
+# 執行全部 38 個自動化測試單元
+npm test
+# 或
 node --test tests/*.test.mjs
 
 # 執行設計規範 Linter
