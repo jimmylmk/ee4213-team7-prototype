@@ -14,6 +14,12 @@ export function BrandMark({ inverse = false }: { inverse?: boolean }) {
 }
 
 export function Header() {
+  const scrollTo = (id: string) => (e: React.MouseEvent) => {
+    e.preventDefault();
+    const el = document.getElementById(id);
+    if (el) el.scrollIntoView({ behavior: "smooth" });
+  };
+
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container mx-auto flex h-16 items-center justify-between px-4">
@@ -26,16 +32,16 @@ export function Header() {
             </div>
           </Link>
           <nav className="hidden md:flex items-center space-x-6 text-sm">
-            <a href="#overview" className="text-muted-foreground hover:text-foreground transition-colors">
+            <a href="#overview" onClick={scrollTo("overview")} className="text-muted-foreground hover:text-foreground transition-colors">
               Overview
             </a>
-            <a href="#capabilities" className="text-muted-foreground hover:text-foreground transition-colors">
+            <a href="#capabilities" onClick={scrollTo("capabilities")} className="text-muted-foreground hover:text-foreground transition-colors">
               Capabilities
             </a>
-            <a href="#persona" className="text-muted-foreground hover:text-foreground transition-colors">
+            <a href="#persona" onClick={scrollTo("persona")} className="text-muted-foreground hover:text-foreground transition-colors">
               Student Persona
             </a>
-            <a href="#walkthrough" className="text-muted-foreground hover:text-foreground transition-colors">
+            <a href="#walkthrough" onClick={scrollTo("walkthrough")} className="text-muted-foreground hover:text-foreground transition-colors">
               Walkthrough
             </a>
           </nav>

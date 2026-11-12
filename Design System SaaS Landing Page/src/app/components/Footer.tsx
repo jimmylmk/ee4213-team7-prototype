@@ -2,6 +2,12 @@ import { BrandMark } from "./Header";
 import { Separator } from "./ui/separator";
 
 export function Footer() {
+  const scrollTo = (id: string) => (e: React.MouseEvent) => {
+    e.preventDefault();
+    const el = document.getElementById(id);
+    if (el) el.scrollIntoView({ behavior: "smooth" });
+  };
+
   return (
     <footer className="border-t border-black/10 bg-[#f8f7f3]">
       <div className="container mx-auto px-4 py-12">
@@ -23,10 +29,10 @@ export function Footer() {
           <div>
             <h4 className="font-mono text-xs uppercase tracking-wider text-[#6c4cff] mb-3">Navigation</h4>
             <ul className="space-y-2 text-xs text-muted-foreground">
-              <li><a href="#overview" className="hover:text-foreground transition-colors">Overview</a></li>
-              <li><a href="#capabilities" className="hover:text-foreground transition-colors">Capabilities</a></li>
-              <li><a href="#persona" className="hover:text-foreground transition-colors">Student Persona</a></li>
-              <li><a href="#walkthrough" className="hover:text-foreground transition-colors">Rehearsal Workflow</a></li>
+              <li><a href="#overview" onClick={scrollTo("overview")} className="hover:text-foreground transition-colors">Overview</a></li>
+              <li><a href="#capabilities" onClick={scrollTo("capabilities")} className="hover:text-foreground transition-colors">Capabilities</a></li>
+              <li><a href="#persona" onClick={scrollTo("persona")} className="hover:text-foreground transition-colors">Student Persona</a></li>
+              <li><a href="#walkthrough" onClick={scrollTo("walkthrough")} className="hover:text-foreground transition-colors">Rehearsal Workflow</a></li>
             </ul>
           </div>
 
