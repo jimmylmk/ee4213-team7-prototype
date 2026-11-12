@@ -121,32 +121,29 @@
   - `tests/*.test.mjs` (包含 Tasks 1–8 共 23 個自動化測試單元)
 
 ### 如何啟動 (How to Run)
-本專案支援兩種啟動方式（完全無需下載或安裝任何外部 npm 套件）：
 
-1. **方法一：使用 npm 命令啟動（推薦）：**
-   在終端機中執行以下任一指令即可自動啟動伺服器並彈出瀏覽器：
+本專案現已全面整合 **Design System SaaS Landing Page & Dashboard (React + Vite)** 與 **單一檔案離線版本 (index.html)** 雙架構：
+
+1. **方法一：啟動頂級 SaaS React + Vite 現代化介面（推薦）：**
+   在終端機中執行：
    ```bash
    npm start
    # 或
    npm run dev
    ```
+   - 伺服器將在 `http://localhost:5173` 啟動，並自動為你在預設瀏覽器中開啟！
+   - 享受 `Design System SaaS Landing Page` 的頂級 Figma 視覺（溫潤米白羊皮紙底色、曜石黑深色側邊欄、螢光檸檬黃高亮導航、3D 浮動課表場景、即時衝突雷達與人機協同控制閘門）。
 
-2. **方法二：直接開啟單一靜態檔案：**
-   - **滑鼠雙擊：** 使用任何瀏覽器（Chrome, Safari, Edge）直接雙擊開啟 [index.html](file:///Users/wat2002221/Desktop/Team%207%20group%20project/index.html)。
-   - **macOS 命令列開啟：**
-     ```bash
-     open index.html
-     ```
+2. **方法二：啟動 100% 離線單一檔案版本 (Single-File Archive)：**
+   ```bash
+   npm run serve:singlefile
+   # 或直接使用瀏覽器雙擊開啟 index.html
+   ```
 
 ### 執行自動化測試與驗證
 ```bash
 # 執行全部 38 個自動化測試單元
 npm test
-# 或
-node --test tests/*.test.mjs
-
-# 執行設計規範 Linter
-node /Users/wat2002221/.gemini/config/skills/design-taste-frontend/scripts/lint.mjs index.html
 ```
 
 ---
