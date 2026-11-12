@@ -2077,6 +2077,11 @@
       highlightBridge: false,
       stagedCandidate: null,
       handoffData: null,
+      handoffChecklist: {
+        seatVerified: false,
+        dropExecuted: false,
+        addExecuted: false
+      },
       initialSnapshot: null,
       toastTimer: null
     };
@@ -2775,9 +2780,36 @@
         return;
       }
 
-      // Handoff card display
+      // Handoff card display (S4: Design Dialogs to Yield Closure)
       if (state.handoffData) {
         const handoff = state.handoffData;
+        const allCompleted = state.handoffChecklist.seatVerified &&
+                             state.handoffChecklist.dropExecuted &&
+                             state.handoffChecklist.addExecuted;
+
+        if (allCompleted) {
+          container.innerHTML = `
+            <div class="audit-card valid">
+              <div class="audit-title" style="color:var(--positive)">
+                [REHEARSAL & AIMS HANDOFF COMPLETE · 12.0 CREDITS SECURED]
+              </div>
+              <p style="font-size:11px; margin-top:4px; color:var(--text);">
+                You have successfully simulated the manual AIMS registration sequence with zero schedule clashes.
+              </p>
+              <button class="btn btn-primary" id="startNewRehearsalBtn" style="margin-top:10px; width:100%;">
+                Start New Rehearsal
+              </button>
+            </div>
+          `;
+          document.getElementById('startNewRehearsalBtn').addEventListener('click', () => {
+            state.handoffData = null;
+            state.handoffChecklist = { seatVerified: false, dropExecuted: false, addExecuted: false };
+            showToast('[Ready to rehearse next course trade]');
+            renderAll();
+          });
+          return;
+        }
+
         container.innerHTML = `
           <div class="audit-card valid">
             <div class="audit-title" style="color:var(--accent)">[AIMS Quick-Entry Handoff Card · ${handoff.mode}]</div>
@@ -2794,11 +2826,46 @@
                 <button class="btn" style="height:26px; font-size:11px; width:100%;" data-copy="${handoff.addCRN}">Copy CRN</button>
               </div>
             </div>
+
+            <!-- 3-Step Interactive Execution Checklist (S4) -->
+            <div style="background:var(--raised); border:1px solid var(--border); border-radius:4px; padding:10px; margin-top:10px;">
+              <span style="font-size:11px; font-weight:700; text-transform:uppercase; color:var(--muted); display:block; margin-bottom:6px;">
+                Manual Execution Checklist:
+              </span>
+              <div style="display:flex; flex-direction:column; gap:6px; font-size:11px;">
+                <label style="display:flex; align-items:center; gap:6px; cursor:pointer;">
+                  <input type="checkbox" id="chkSeatVerified" ${state.handoffChecklist.seatVerified ? 'checked' : ''}>
+                  <span>1. Verified live seat availability on AIMS for Add CRN (${handoff.addCRN})</span>
+                </label>
+                <label style="display:flex; align-items:center; gap:6px; cursor:pointer;">
+                  <input type="checkbox" id="chkDropExecuted" ${state.handoffChecklist.dropExecuted ? 'checked' : ''}>
+                  <span>2. Executed drop for ${handoff.dropCode} on AIMS using Drop CRN (${handoff.dropCRN})</span>
+                </label>
+                <label style="display:flex; align-items:center; gap:6px; cursor:pointer;">
+                  <input type="checkbox" id="chkAddExecuted" ${state.handoffChecklist.addExecuted ? 'checked' : ''}>
+                  <span>3. Executed add for ${handoff.addCode} on AIMS using Add CRN (${handoff.addCRN})</span>
+                </label>
+              </div>
+            </div>
+
             <div style="background:#fff7ed; border:1px solid #fed7aa; border-left:3px solid #d97706; border-radius:4px; padding:8px; margin-top:10px; font-size:11px; color:#9a3412;">
               <strong>NON-ATOMIC SEQUENCE NOTICE (9.0 CR TEMPORARY DROP):</strong> CityU AIMS requires dropping ${handoff.dropCode} before adding ${handoff.addCode} (momentarily placing you at 9.0 CR). Verify live seat availability right before dropping.
             </div>
           </div>
         `;
+
+        document.getElementById('chkSeatVerified').addEventListener('change', (e) => {
+          state.handoffChecklist.seatVerified = e.target.checked;
+          renderLiveAudit();
+        });
+        document.getElementById('chkDropExecuted').addEventListener('change', (e) => {
+          state.handoffChecklist.dropExecuted = e.target.checked;
+          renderLiveAudit();
+        });
+        document.getElementById('chkAddExecuted').addEventListener('change', (e) => {
+          state.handoffChecklist.addExecuted = e.target.checked;
+          renderLiveAudit();
+        });
 
         container.querySelectorAll('[data-copy]').forEach(btn => {
           btn.addEventListener('click', () => {
@@ -2864,6 +2931,7 @@
         addCode,
         addCRN: addCourse.crn
       };
+      state.handoffChecklist = { seatVerified: false, dropExecuted: false, addExecuted: false };
 
       state.enrolled = state.enrolled.filter(c => c !== dropCode);
       state.enrolled.push(addCode);
@@ -2880,7 +2948,9 @@
       state.swapOutId = null;
       state.selectedReplacement = null;
       state.handoffData = null;
+      state.handoffChecklist = { seatVerified: false, dropExecuted: false, addExecuted: false };
       state.commitmentPriorityMode = 'warn';
+      showToast('[Restored original 12.0 credit baseline schedule]');
       renderAll();
     }
 
@@ -2890,7 +2960,9 @@
       state.selectedReplacement = null;
       state.shortlist = [];
       state.handoffData = null;
+      state.handoffChecklist = { seatVerified: false, dropExecuted: false, addExecuted: false };
       state.commitmentPriorityMode = 'warn';
+      showToast('[Reset simulator to initial state]');
       renderAll();
     }
 
