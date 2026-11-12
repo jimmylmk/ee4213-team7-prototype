@@ -12,6 +12,7 @@ export function HeroSection() {
     if (!scene) return;
 
     const cards = scene.querySelectorAll('.floating-card');
+    let frameId: number;
     
     const animateCards = () => {
       cards.forEach((card, index) => {
@@ -31,10 +32,11 @@ export function HeroSection() {
         `;
       });
       
-      requestAnimationFrame(animateCards);
+      frameId = requestAnimationFrame(animateCards);
     };
     
-    animateCards();
+    frameId = requestAnimationFrame(animateCards);
+    return () => cancelAnimationFrame(frameId);
   }, []);
 
   return (

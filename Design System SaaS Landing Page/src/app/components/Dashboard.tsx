@@ -1335,7 +1335,7 @@ export function Dashboard() {
                   onChange={(e) => setHandoffStep1(e.target.checked)}
                   className="mt-0.5 rounded"
                 />
-                <span>1. Verified live seat availability on AIMS for Add CRN ({handoff.addCRN || 'N/A'}).</span>
+                <span>1. Verified live seat availability on AIMS for Add CRN ({stagedCourse?.crn || 'N/A'}).</span>
               </label>
 
               <label className="flex items-start gap-2.5 text-xs cursor-pointer">
