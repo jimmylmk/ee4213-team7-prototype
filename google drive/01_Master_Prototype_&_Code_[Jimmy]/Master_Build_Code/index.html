@@ -1683,6 +1683,11 @@
         <div class="panel">
           <div class="panel-header">
             <div>
+              <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
+                <button class="btn" id="inspBackToTimetableBtn" style="height:26px; font-size:11px; padding:0 10px;">
+                  &larr; Return to Weekly Timetable
+                </button>
+              </div>
               <h2>Course Inspector &amp; Workload Diagnostics</h2>
               <p>US-013 to US-016 · Static Syllabus Assessment Badges, Provenance Boundaries &amp; 13-Week Deliverable Strip</p>
             </div>
@@ -2553,6 +2558,27 @@
           stageBtnHtml = `<button class="btn btn-danger" style="height:26px; font-size:11px;" data-stage="${course.code}">Stage / Test Alert</button>`;
         }
 
+        let alertMessage = '';
+        if (!validRes.ok) {
+          if (course.code === 'CS3334') {
+            alertMessage = `
+              <div style="margin-top:4px; display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                <span style="font-size:11px; font-weight:600; color:var(--negative);">[UNMET PREREQUISITE: CS2201 REQUIRED]</span>
+                <button class="btn" style="height:22px; font-size:10px; padding:0 6px;" data-inspect-prereq="CS2201">
+                  Inspect Prerequisite CS2201 &rarr;
+                </button>
+              </div>`;
+          } else if (course.code === 'PHY2201') {
+            alertMessage = `
+              <div style="margin-top:4px; font-size:11px; font-weight:600; color:var(--negative);">
+                [RESTRICTED: PHYSICS MAJOR ONLY]
+                <span style="color:var(--muted); font-weight:500;">(Non-major waiver requires Departmental Form ARRO-02)</span>
+              </div>`;
+          } else {
+            alertMessage = `<p style="font-size:11px; font-weight:600; color:var(--negative); margin-top:4px;">[ALERT] ${validRes.reasons[0]}</p>`;
+          }
+        }
+
         item.innerHTML = `
           <div class="cat-head">
             <div>
@@ -2569,7 +2595,7 @@
             <span>${course.credits.toFixed(1)} Credits</span>
             ${course.isBridge ? '<span style="color:var(--accent); font-weight:700;">[Bridge Course]</span>' : ''}
           </div>
-          ${!validRes.ok ? `<p style="font-size:11px; font-weight:600; color:var(--negative); margin-top:4px;">[ALERT] ${validRes.reasons[0]}</p>` : ''}
+          ${alertMessage}
           <div class="cat-actions">
             <button class="btn" style="height:26px; font-size:11px;" data-inspect="${course.code}">Inspect</button>
             <button class="btn" style="height:26px; font-size:11px;" data-shortlist="${course.code}">
@@ -2581,6 +2607,11 @@
 
         item.querySelector('[data-inspect]').addEventListener('click', () => openCourseInInspector(course.code));
         item.querySelector('[data-shortlist]').addEventListener('click', () => toggleShortlist(course.code));
+
+        const prereqBtn = item.querySelector('[data-inspect-prereq]');
+        if (prereqBtn) {
+          prereqBtn.addEventListener('click', () => openCourseInInspector(prereqBtn.dataset.inspectPrereq));
+        }
         
         const unstageBtn = item.querySelector('[data-unstage]');
         if (unstageBtn) {
@@ -2878,9 +2909,36 @@
       document.getElementById('inspCode').textContent = course.code;
       document.getElementById('inspTitle').textContent = course.title;
 
-      // Section 5 (Aadib Roadmap + Praneel Provenance Badges): Append [EXAM DATE: UNKNOWN · NOT PUBLISHED] when examPct > 0
+      // Compute Schedule Fit Badge (N6 / S8 & Important Fix #3/4)
+      const projectedEnrolled = state.enrolled.filter(c => c !== state.swapOutId);
+      const isEnrolled = state.enrolled.includes(course.code);
+      const isStaged = state.selectedReplacement === course.code;
+
+      let scheduleFitBadge = '';
+      if (isEnrolled) {
+        scheduleFitBadge = `<span class="badge-pill" style="color:var(--accent); font-weight:700;">[STATUS: CURRENTLY ENROLLED · ${course.credits.toFixed(1)} CR]</span>`;
+      } else if (isStaged) {
+        scheduleFitBadge = `<span class="badge-pill" style="color:#0891b2; font-weight:700;">[STATUS: STAGED ON TIMETABLE PREVIEW]</span>`;
+      } else {
+        const clashCourse = projectedEnrolled.map(getCourse).find(existing => {
+          if (!existing) return false;
+          return existing.day === course.day &&
+            toMinutes(course.start) < toMinutes(existing.end) &&
+            toMinutes(course.end) > toMinutes(existing.start);
+        });
+
+        if (clashCourse) {
+          scheduleFitBadge = `<span class="badge-pill alert">[TIMETABLE CLASH: OVERLAPS WITH ${clashCourse.code} (${clashCourse.day} ${clashCourse.start}-${clashCourse.end})]</span>`;
+        } else if (state.showOutsideCommitments && course.day === 'Mon' && toMinutes(course.start) < toMinutes('13:00') && toMinutes(course.end) > toMinutes('09:00')) {
+          scheduleFitBadge = `<span class="badge-pill alert">[SCHEDULE FIT: FITS CLASSES · OVERLAPS TECH PLACEMENT (MON 09:00–13:00)]</span>`;
+        } else {
+          scheduleFitBadge = `<span class="badge-pill" style="color:var(--positive); font-weight:700;">[SCHEDULE FIT: NO CLASH WITH YOUR SCHEDULE]</span>`;
+        }
+      }
+
       const badgesRow = document.getElementById('inspBadges');
       badgesRow.innerHTML = `
+        ${scheduleFitBadge}
         <span class="badge-pill">[GRADING: ${course.courseworkPct}% COURSEWORK / ${course.examPct}% EXAM]</span>
         <span class="badge-pill ${course.groupPct > 20 ? 'alert' : ''}">
           ${course.groupPct > 20 ? `[GROUP-WORK RISK: ${course.groupPct}%]` : `[GROUP WORK: ${course.groupPct}%]`}
@@ -3213,6 +3271,11 @@
       state.activeBlogPostId = null;
       switchMainView('blogsView');
       renderBlogs();
+    });
+
+    // Return to Timetable Breadcrumb Button (N6 / S8)
+    document.getElementById('inspBackToTimetableBtn')?.addEventListener('click', () => {
+      switchMainView('rehearsalView');
     });
 
     // Top Revert & Reset Buttons
