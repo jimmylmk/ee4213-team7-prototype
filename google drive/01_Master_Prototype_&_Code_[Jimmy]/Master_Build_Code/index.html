@@ -177,7 +177,7 @@
     }
     .landing-card-tag {
       font-family: var(--font-mono);
-      font-size: 10px;
+      font-size: 11px;
       font-weight: 700;
       color: var(--muted);
       margin-bottom: 8px;
@@ -252,6 +252,15 @@
       }
       .walkthrough-steps-grid {
         grid-template-columns: 1fr;
+      }
+    }
+    @media (max-width: 600px) {
+      .landing-hero {
+        padding: 40px 16px 32px;
+      }
+      .landing-hero h1 {
+        font-size: 22px;
+        line-height: 1.25;
       }
     }
 
@@ -2910,7 +2919,7 @@
             alertMessage = `
               <div style="margin-top:4px; display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
                 <span style="font-size:11px; font-weight:600; color:var(--negative);">[UNMET PREREQUISITE: CS2201 REQUIRED]</span>
-                <button class="btn" style="height:22px; font-size:10px; padding:0 6px;" data-inspect-prereq="CS2201">
+                <button class="btn" style="height:22px; font-size:11px; padding:0 6px;" data-inspect-prereq="CS2201">
                   Inspect Prerequisite CS2201 &rarr;
                 </button>
               </div>`;
@@ -3364,18 +3373,22 @@
     }
 
     function handleHashRoute() {
-      const hash = window.location.hash.toLowerCase();
-      if (hash === '#rehearsal') {
+      const rawHash = window.location.hash || '';
+      const lowerHash = rawHash.toLowerCase();
+      if (lowerHash === '#rehearsal') {
         showDashboard('rehearsalView', false);
-      } else if (hash === '#inspector') {
+      } else if (lowerHash === '#inspector') {
         showDashboard('inspectorView', false);
-      } else if (hash === '#blogs') {
+      } else if (lowerHash === '#blogs') {
         showDashboard('blogsView', false);
       } else {
         showLandingPage(false);
-        if (hash && hash !== '#landing') {
-          const targetEl = document.querySelector(hash);
-          if (targetEl) targetEl.scrollIntoView();
+        if (rawHash && lowerHash !== '#landing') {
+          const targetId = rawHash.startsWith('#') ? rawHash.slice(1) : rawHash;
+          const targetEl = document.getElementById(targetId);
+          if (targetEl && typeof targetEl.scrollIntoView === 'function') {
+            targetEl.scrollIntoView();
+          }
         }
       }
     }
