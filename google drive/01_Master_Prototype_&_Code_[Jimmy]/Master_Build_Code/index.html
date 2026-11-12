@@ -35,6 +35,9 @@
       --radius-sheet: 16px;
       --topbar-height: 52px;
       --sidebar-width: 236px;
+      --page: #f8fafc;
+      --panel: #ffffff;
+      --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
     }
 
     *, *::before, *::after {
@@ -77,6 +80,179 @@
       background: var(--page);
       color: var(--text);
       font-family: var(--font-sans);
+    }
+
+    /* Landing Page Presentation Styles (Prototype v2.1) */
+    .landing-nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 32px;
+      background: var(--panel);
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+    .landing-nav-brand {
+      font-weight: 700;
+      font-size: 14px;
+      color: #0f172a;
+      letter-spacing: -0.01em;
+    }
+    .landing-nav-links {
+      display: flex;
+      gap: 20px;
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+    .landing-nav-links a {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--muted);
+      text-decoration: none;
+      transition: color 0.15s ease;
+    }
+    .landing-nav-links a:hover {
+      color: var(--text);
+    }
+    .landing-hero {
+      max-width: 1080px;
+      margin: 0 auto;
+      padding: 64px 24px 48px;
+      text-align: center;
+    }
+    .landing-kicker {
+      display: inline-block;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--accent);
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      padding: 4px 10px;
+      border-radius: 9999px;
+      margin-bottom: 16px;
+    }
+    .landing-hero h1 {
+      font-size: 36px;
+      line-height: 1.2;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: #0f172a;
+      margin: 0 0 16px;
+    }
+    .landing-hero p {
+      font-size: 15px;
+      line-height: 1.6;
+      color: #475569;
+      max-width: 780px;
+      margin: 0 auto 32px;
+    }
+    .landing-hero-actions {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .landing-grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+      max-width: 1140px;
+      margin: 0 auto 64px;
+      padding: 0 24px;
+    }
+    .landing-card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-card);
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      box-shadow: var(--shadow-sm);
+    }
+    .landing-card-tag {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--muted);
+      margin-bottom: 8px;
+      display: block;
+    }
+    .landing-card h3 {
+      font-size: 16px;
+      font-weight: 700;
+      color: #0f172a;
+      margin: 0 0 8px;
+    }
+    .landing-card p {
+      font-size: 13px;
+      line-height: 1.5;
+      color: #475569;
+      margin: 0 0 20px;
+    }
+    .landing-persona-banner {
+      background: #f1f5f9;
+      border: 1px solid #cbd5e1;
+      border-radius: var(--radius-card);
+      max-width: 1140px;
+      margin: 0 auto 64px;
+      padding: 28px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 24px;
+    }
+    .landing-walkthrough {
+      max-width: 1140px;
+      margin: 0 auto 64px;
+      padding: 0 24px;
+    }
+    .walkthrough-steps-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-top: 20px;
+    }
+    .walkthrough-step-card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-card);
+      padding: 20px;
+    }
+    .landing-footer {
+      border-top: 1px solid var(--border);
+      background: var(--panel);
+      padding: 32px 24px;
+      text-align: center;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    /* Responsive Breakpoints (Important Fix #4) */
+    @media (max-width: 900px) {
+      .landing-grid-3 {
+        grid-template-columns: 1fr;
+      }
+    }
+    @media (max-width: 900px) {
+      .landing-persona-banner {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      .landing-nav {
+        padding: 12px 16px;
+      }
+      .landing-nav-links {
+        display: none;
+      }
+      .walkthrough-steps-grid {
+        grid-template-columns: 1fr;
+      }
     }
 
     /* App Shell Layout */
@@ -1493,7 +1669,135 @@
 </head>
 <body>
   <!-- 1. FULL-WIDTH LANDING PAGE CONTAINER (Loads on initial boot) -->
-  <div id="landingView" class="landing-page-wrapper"></div>
+  <div id="landingView" class="landing-page-wrapper">
+    <!-- Top Navigation Bar -->
+    <nav class="landing-nav">
+      <div class="landing-nav-brand">CityU EE4213 Team 7 · Course Planning Sandbox</div>
+      <ul class="landing-nav-links">
+        <li><a href="#overviewSection">Overview</a></li>
+        <li><a href="#capabilitiesSection">Key Capabilities</a></li>
+        <li><a href="#personaSection">Student Persona</a></li>
+        <li><a href="#walkthroughSection">3-Step Walkthrough</a></li>
+      </ul>
+      <button class="btn btn-primary" id="navLaunchBtn" style="height: 32px; font-size: 12px;">
+        Launch Sandbox Workspace &rarr;
+      </button>
+    </nav>
+
+    <!-- Hero Section (Important Fix #5: id="overviewSection") -->
+    <header class="landing-hero" id="overviewSection">
+      <span class="landing-kicker">[STUDENT-CENTERED HCI PROTOTYPE V2.1 · CITYU AY2026/27]</span>
+      <h1>Unified Course Planning &amp; Safe-Swap Rehearsal Sandbox</h1>
+      <p>
+        Eliminate the fear of dropping a course on CityU AIMS before securing a replacement. Safe-Swap Sandbox is a client-side rehearsal environment designed to protect your 12.0 credit full-time visa floor, detect timetable clashes in advance, and balance academic workloads against outside placement commitments.
+      </p>
+      <div class="landing-hero-actions">
+        <button class="btn btn-primary" id="heroLaunchBtn" style="height: 40px; font-size: 13px; padding: 0 20px;">
+          Launch Rehearsal Sandbox &rarr;
+        </button>
+        <button class="btn" id="heroInspectBtn" style="height: 40px; font-size: 13px; padding: 0 20px;">
+          Course Workload Diagnostics
+        </button>
+      </div>
+    </header>
+
+    <!-- 3 Core Capabilities Grid (id="capabilitiesSection") -->
+    <section class="landing-grid-3" id="capabilitiesSection">
+      <div class="landing-card">
+        <div>
+          <span class="landing-card-tag">[NON-ATOMIC AIMS REGISTRATION PROTECTION]</span>
+          <h3>3-State Safe-Swap Rehearsal</h3>
+          <p>
+            Preview course trades across Solid (Enrolled), Muted (Marked for Drop), and Ghost (Staged Preview) states before modifying actual AIMS records. Automatic checks enforce the 12.0 credit visa floor and prevent timetable overlaps.
+          </p>
+        </div>
+        <button class="btn btn-primary" id="cardLaunchRehearsalBtn" style="height: 32px; font-size: 12px; width: 100%;">
+          Open Weekly Timetable &rarr;
+        </button>
+      </div>
+
+      <div class="landing-card">
+        <div>
+          <span class="landing-card-tag">[STATIC SYLLABUS &amp; DELIVERABLE TIMELINE]</span>
+          <h3>Transparent Workload Diagnostics</h3>
+          <p>
+            Inspect weekly lecture, tutorial, lab, project, and study hour distributions derived from official course syllabi. Correlate 13-week deliverable stress milestones directly against outside internship hours.
+          </p>
+        </div>
+        <button class="btn" id="cardLaunchInspectorBtn" style="height: 32px; font-size: 12px; width: 100%;">
+          Inspect Course Workload &rarr;
+        </button>
+      </div>
+
+      <div class="landing-card">
+        <div>
+          <span class="landing-card-tag">[AUTHENTIC CITYU STUDENT EXPERIENCES]</span>
+          <h3>Verified Peer Reviews &amp; Blogs</h3>
+          <p>
+            Read 6 verified student blog reviews focusing on non-local adjustment, GE course selections, and placement balancing. Click any course tag inside an article to inspect its prerequisites instantly.
+          </p>
+        </div>
+        <button class="btn" id="cardLaunchBlogsBtn" style="height: 32px; font-size: 12px; width: 100%;">
+          Read Student Blogs &rarr;
+        </button>
+      </div>
+    </section>
+
+    <!-- Testing Persona Showcase (id="personaSection") -->
+    <section class="landing-persona-banner" id="personaSection">
+      <div>
+        <span class="landing-card-tag" style="color: var(--accent); font-weight: 700;">[PRIMARY TESTING PERSONA]</span>
+        <h2 style="font-size: 18px; margin: 4px 0 6px; color: #0f172a;">Marcus Li (Subgroups A/C/D Synthesized)</h2>
+        <p style="font-size: 12px; font-family: var(--font-mono); color: var(--muted); margin: 0 0 10px;">
+          Year 1 STEM Undergraduate · Undeclared Major · Student ID: 55489201 · Full-Time 12.0–18.0 Credits
+        </p>
+        <p style="font-size: 13px; color: #334155; max-width: 680px; margin: 0;">
+          Marcus needs to swap his Friday afternoon elective (GE1109) for a morning section while protecting his 12.0 credit full-time visa floor and avoiding timetable clashes with his Thursday and Monday Tech Placement (09:00–13:00).
+        </p>
+      </div>
+      <button class="btn btn-primary" id="personaLaunchBtn" style="height: 36px; font-size: 12px; white-space: nowrap;">
+        Enter Rehearsal with Marcus's Baseline &rarr;
+      </button>
+    </section>
+
+    <!-- 3-Step Walkthrough (id="walkthroughSection") -->
+    <section class="landing-walkthrough" id="walkthroughSection">
+      <div style="text-align: center; margin-bottom: 24px;">
+        <span class="landing-card-tag">[SAFE-SWAP REHEARSAL WORKFLOW]</span>
+        <h2 style="font-size: 22px; color: #0f172a; margin: 4px 0;">How It Works in 3 Simple Steps</h2>
+      </div>
+      <div class="walkthrough-steps-grid">
+        <div class="walkthrough-step-card">
+          <strong style="font-size: 14px; color: var(--accent);">Step 1: Select Drop Target</strong>
+          <p style="font-size: 12px; color: var(--muted); margin-top: 6px;">
+            Choose an enrolled course (e.g. GE1109) to mark for swap-out. Its timetable card enters a muted state while your seat remains fully protected.
+          </p>
+        </div>
+        <div class="walkthrough-step-card">
+          <strong style="font-size: 14px; color: var(--accent);">Step 2: Preview Replacement</strong>
+          <p style="font-size: 12px; color: var(--muted); margin-top: 6px;">
+            Browse the 22-course simulated catalogue and click Stage Swap to project a ghost card onto the grid, verifying zero clashes and credit safety.
+          </p>
+        </div>
+        <div class="walkthrough-step-card">
+          <strong style="font-size: 14px; color: var(--accent);">Step 3: Supervised AIMS Handoff</strong>
+          <p style="font-size: 12px; color: var(--muted); margin-top: 6px;">
+            Review the Human Control Gate delta, check the 3-step manual verification list, and copy verified CRNs to AIMS with complete closure.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="landing-footer">
+      <p style="margin: 0 0 6px;">
+        CityU EE4213 Human-Computer Interaction · Team #7 · Unified Course Planning &amp; Safe-Swap Rehearsal Sandbox
+      </p>
+      <p style="margin: 0; font-family: var(--font-mono); font-size: 11px;">
+        Designed for AY2026/27 Semester A Course Add/Drop Rehearsal. 100% Offline Simulation.
+      </p>
+    </footer>
+  </div>
 
   <!-- 2. EXISTING REHEARSAL DASHBOARD CONTAINER (Initially hidden) -->
   <div id="dashboardView" class="app-layout" style="display: none;">
