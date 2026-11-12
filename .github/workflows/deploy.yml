@@ -36,7 +36,7 @@ jobs:
 
       - name: Install dependencies
         working-directory: './Design System SaaS Landing Page'
-        run: npm ci
+        run: npm ci --legacy-peer-deps
 
       - name: Build Vite React SaaS
         working-directory: './Design System SaaS Landing Page'
