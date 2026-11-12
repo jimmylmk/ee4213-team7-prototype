@@ -1,0 +1,278 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Offline simulated course registration rehearsal sandbox.">
+  <title>Course Registration Sandbox | Simulated Rehearsal</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root { color-scheme: light; font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
+    body { background: #f4f7fb; color: #172033; }
+    .schedule-grid { display:grid; grid-template-columns:4.5rem repeat(5,minmax(0,1fr)); grid-template-rows:2.75rem repeat(13,3.25rem); align-content:start; min-width:50rem; }
+    .schedule-cell { border-right:1px solid #e2e8f0; }
+    .schedule-header { border-bottom:1px solid #e2e8f0; }
+    .course-block { z-index:2; margin:0 .3rem; min-width:0; overflow:hidden; border-radius:.75rem; padding:.65rem; }
+    .course-block p,.course-block span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .ghost-block { border: 2px dashed #06b6d4; background: rgba(207, 250, 254, 0.45); color: #0e7490; }
+    .dragging { opacity:.45; }
+    @media (max-width:900px) { .workspace { grid-template-columns:minmax(0,1fr); } }
+  </style>
+</head>
+<body class="min-h-screen">
+  <header class="border-b border-slate-200 bg-white">
+    <div class="mx-auto flex max-w-[1600px] flex-col gap-4 px-5 py-5 sm:px-8 lg:flex-row lg:items-center lg:justify-between">
+      <div>
+        <p class="text-xs font-bold uppercase tracking-[.18em] text-indigo-700">Offline academic planning</p>
+        <h1 class="mt-1 text-xl font-bold tracking-tight text-slate-900 sm:text-2xl">Course Registration Sandbox</h1>
+        <p class="mt-2 text-sm text-slate-500">Simulated rehearsal only — no live registration action is performed.</p>
+      </div>
+      <div class="flex flex-col items-start gap-3 sm:flex-row sm:items-center">
+        <div class="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-800"><span class="h-2 w-2 rounded-full bg-emerald-500"></span>Offline Staging Mode · Zero Direct Institutional Submission</div>
+        <div id="credit-pill" class="rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-bold text-slate-700"></div>
+        <button id="reset-btn" class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50">Reset simulator</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="mx-auto max-w-[1600px] px-5 py-6 sm:px-8 lg:py-8">
+    <div class="mb-6 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+      <div><p class="text-xs font-bold uppercase tracking-[.18em] text-slate-400">Integrated simulator · simulated data</p><h2 class="mt-2 text-2xl font-bold tracking-tight text-slate-900">Protected weekly schedule</h2></div>
+      <p class="max-w-xl text-sm leading-6 text-slate-500">Stage and validate a replacement before preparing manual steps. Your original seat remains protected throughout the rehearsal.</p>
+    </div>
+    <div class="workspace grid items-start gap-6 lg:grid-cols-[minmax(0,68fr)_minmax(21rem,32fr)]">
+      <section class="min-w-0 rounded-2xl border border-slate-200 bg-white p-4 shadow-lg shadow-slate-200/50 sm:p-6" aria-labelledby="timetable-heading">
+        <div class="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div><h3 id="timetable-heading" class="text-base font-bold text-slate-900">Weekly timetable</h3><p class="mt-1 text-xs text-slate-500">Monday to Friday · 09:00–22:00</p><div class="mt-2 flex items-center gap-3 text-[11px] font-medium text-slate-600"><span class="inline-flex items-center gap-1.5"><span class="h-2.5 w-4 rounded-sm border border-indigo-400 bg-indigo-100"></span> Enrolled (solid)</span><span class="inline-flex items-center gap-1.5"><span class="h-2.5 w-4 rounded-sm border-2 border-dashed border-cyan-500 bg-cyan-100"></span> Staged Preview (dashed)</span></div></div>
+          <button id="revert-btn" class="hidden rounded-xl bg-cyan-700 px-3.5 py-2 text-xs font-bold text-white shadow-sm hover:bg-cyan-800 focus:ring-2 focus:ring-cyan-500 focus:ring-offset-1 transition-all">↺ Revert to Original Schedule</button>
+          <div id="swap-out-control" class="flex flex-wrap gap-2"></div>
+        </div>
+        <div class="overflow-x-auto rounded-xl border border-slate-200">
+          <div id="timetable" class="schedule-grid" aria-label="Weekly course timetable"></div>
+        </div>
+      </section>
+
+      <aside class="min-w-0 rounded-2xl border border-slate-200 bg-white p-5 shadow-lg shadow-slate-200/50 sm:p-6" aria-labelledby="dock-heading">
+        <div class="flex items-start justify-between gap-3"><div><p class="text-xs font-bold uppercase tracking-[.16em] text-indigo-600">Course staging &amp; discovery</p><h3 id="dock-heading" class="mt-2 text-lg font-bold text-slate-900">Rehearsal dock</h3></div><span class="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-500">Simulated data</span></div>
+        <div class="mt-5">
+          <label for="search" class="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-500">Search master schedule</label>
+          <input id="search" type="search" placeholder="Search code or course title..." class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm outline-none focus:border-indigo-400 focus:bg-white focus:ring-4 focus:ring-indigo-100">
+        </div>
+        <div class="mt-5 rounded-xl border border-indigo-100 bg-indigo-50/60 p-4">
+          <div class="flex items-center justify-between"><h4 class="text-sm font-bold text-indigo-950">My Shortlist</h4><span id="shortlist-count" class="rounded-full bg-white px-2 py-1 text-[10px] font-bold text-indigo-700"></span></div>
+          <div id="shortlist" class="mt-3 space-y-2"></div>
+        </div>
+        <div class="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4">
+          <div class="flex items-center gap-2"><span class="rounded-full bg-indigo-100 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-indigo-700">Simulated assistant</span><span class="text-[10px] text-slate-400">rule-based</span></div>
+          <p class="mt-2 text-xs leading-5 text-slate-600">Ask for a simulated recommendation, such as “find non-clashing GE on Wednesday”.</p>
+          <div class="mt-3 flex gap-2"><input id="assistant-input" class="min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs outline-none focus:border-indigo-400" placeholder="Try a planning request"><button id="assistant-btn" class="rounded-lg bg-slate-800 px-3 py-2 text-xs font-bold text-white hover:bg-slate-700">Ask</button></div>
+          <div id="assistant-reply" class="mt-3 hidden rounded-lg bg-white p-3 text-xs leading-5 text-slate-600"></div>
+        </div>
+        <div class="mt-5"><div class="flex items-center justify-between gap-3"><h4 class="text-sm font-bold text-slate-900">Available simulated courses</h4><button id="browse-toggle" class="text-[10px] font-bold text-indigo-700 hover:text-indigo-900">Browse all</button></div><div id="course-results" class="mt-3 space-y-2 max-h-80 overflow-y-auto pr-1 rounded-xl"></div></div>
+        <div id="assistant-suggestions" class="mt-5 hidden rounded-xl border border-indigo-100 bg-indigo-50/60 p-4"></div>
+        <div id="audit" class="mt-5"></div>
+      </aside>
+    </div>
+  </main>
+
+  <div id="gate-modal" class="fixed inset-0 z-20 hidden items-center justify-center bg-slate-950/50 p-5" role="dialog" aria-modal="true" aria-labelledby="gate-title">
+    <div class="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
+      <div class="flex items-start justify-between gap-4"><div><p class="text-xs font-bold uppercase tracking-[.16em] text-amber-600">Human-in-the-loop control gate</p><h2 id="gate-title" class="mt-2 text-xl font-bold text-slate-900">Review simulated swap execution</h2></div><button id="close-modal" class="text-2xl leading-none text-slate-400" aria-label="Close modal">&times;</button></div>
+      <p class="mt-4 text-sm leading-6 text-slate-600">The assistant can prepare a preview or a manual guide, but it cannot submit changes. You remain responsible for final entry in AIMS.</p>
+      <div class="mt-5 grid gap-3 sm:grid-cols-2"><button id="auto-stage" class="rounded-xl border-2 border-indigo-200 bg-indigo-50 p-4 text-left hover:border-indigo-500"><span class="text-sm font-bold text-indigo-900">Auto-stage preview</span><span class="mt-1 block text-xs leading-5 text-indigo-700">Show the validated replacement in the rehearsal timetable.</span></button><button id="manual-guide" class="rounded-xl border-2 border-slate-200 bg-white p-4 text-left hover:border-slate-400"><span class="text-sm font-bold text-slate-900">Manual CRN guide</span><span class="mt-1 block text-xs leading-5 text-slate-600">Prepare the same steps for careful manual entry.</span></button></div>
+      <p class="mt-5 rounded-lg bg-emerald-50 p-3 text-xs font-semibold text-emerald-800">🔒 Original seat remains protected. Nothing is submitted to AIMS.</p>
+    </div>
+  </div>
+
+  <script>
+    const masterSchedule = [
+      { crn:'51001', code:'EE2000', title:'Engineering Foundations', day:'Mon', start:'10:00', end:'12:00', credits:3, quotaTotal:30, quotaAvailable:12, requiredMajor:null, prereqs:[] },
+      { crn:'51003', code:'CS1302', title:'Introduction to Computing', day:'Tue', start:'14:00', end:'16:00', credits:3, quotaTotal:30, quotaAvailable:8, requiredMajor:null, prereqs:[] },
+      { crn:'51004', code:'GE1501', title:'University Life & Society', day:'Wed', start:'11:00', end:'13:00', credits:3, quotaTotal:30, quotaAvailable:16, requiredMajor:null, prereqs:[] },
+      { crn:'51002', code:'GE1109', title:'Global Cultures', day:'Fri', start:'15:00', end:'18:00', credits:3, quotaTotal:30, quotaAvailable:6, requiredMajor:null, prereqs:[] },
+      { crn:'54081', code:'GE1401', title:'University English', day:'Wed', start:'14:00', end:'17:00', credits:3, quotaTotal:30, quotaAvailable:4, requiredMajor:null, prereqs:[] },
+      { crn:'54086', code:'GE1907', title:'Asian Cities & Culture', day:'Fri', start:'10:00', end:'12:00', credits:3, quotaTotal:30, quotaAvailable:11, requiredMajor:null, prereqs:[] },
+      { crn:'54087', code:'GE2203', title:'Sustainability & Society', day:'Wed', start:'14:00', end:'16:00', credits:3, quotaTotal:30, quotaAvailable:3, requiredMajor:null, prereqs:[] },
+      { crn:'54090', code:'GE2305', title:'Film & Media Culture', day:'Tue', start:'18:00', end:'21:00', credits:3, quotaTotal:30, quotaAvailable:6, requiredMajor:null, prereqs:[] },
+      { crn:'54091', code:'GE2410', title:'Public Speaking Skills', day:'Thu', start:'19:00', end:'22:00', credits:3, quotaTotal:30, quotaAvailable:3, requiredMajor:null, prereqs:[] },
+      { crn:'54092', code:'GE1601', title:'Climate Change & Living', day:'Mon', start:'14:00', end:'16:00', credits:3, quotaTotal:30, quotaAvailable:7, requiredMajor:null, prereqs:[] },
+      { crn:'54093', code:'EE1002', title:'Principles of Electronic Eng', day:'Fri', start:'13:00', end:'15:00', credits:3, quotaTotal:35, quotaAvailable:5, requiredMajor:null, prereqs:[] },
+      { crn:'54094', code:'GE1305', title:'Music & Contemporary Life', day:'Thu', start:'16:00', end:'18:00', credits:2, quotaTotal:25, quotaAvailable:5, requiredMajor:null, prereqs:[] },
+      { crn:'54095', code:'GE2215', title:'Urban Heritage Studies', day:'Tue', start:'14:00', end:'17:00', credits:3, quotaTotal:30, quotaAvailable:4, requiredMajor:null, prereqs:[] },
+      { crn:'54096', code:'PHY2201', title:'Modern & Quantum Physics', day:'Wed', start:'09:00', end:'12:00', credits:3, quotaTotal:25, quotaAvailable:6, requiredMajor:'Physics', prereqs:[] },
+      { crn:'54097', code:'DSC3001', title:'Database Foundations', day:'Fri', start:'10:00', end:'13:00', credits:3, quotaTotal:30, quotaAvailable:4, requiredMajor:'Data Science', prereqs:[] },
+      { crn:'54098', code:'CS3334', title:'Data Structures & Algorithms', day:'Mon', start:'16:00', end:'19:00', credits:3, quotaTotal:30, quotaAvailable:8, requiredMajor:null, prereqs:['CS2201'] },
+      { crn:'54082', code:'GE2101', title:'Culture & Society', day:'Mon', start:'10:00', end:'13:00', credits:3, quotaTotal:30, quotaAvailable:9, requiredMajor:null, prereqs:[] },
+      { crn:'54083', code:'CS2115', title:'Computer Systems', day:'Thu', start:'09:00', end:'12:00', credits:3, quotaTotal:30, quotaAvailable:7, requiredMajor:'CS', prereqs:['CS1302'] },
+      { crn:'54084', code:'GE1602', title:'Ethics in Everyday Life', day:'Thu', start:'13:00', end:'15:00', credits:3, quotaTotal:30, quotaAvailable:0, requiredMajor:null, prereqs:[] },
+      { crn:'54085', code:'GE1804', title:'Digital Citizenship', day:'Tue', start:'09:00', end:'11:00', credits:3, quotaTotal:30, quotaAvailable:0, requiredMajor:null, prereqs:[] },
+      { crn:'54088', code:'CS2201', title:'Data Structures', day:'Thu', start:'13:00', end:'16:00', credits:3, quotaTotal:30, quotaAvailable:5, requiredMajor:'CS', prereqs:['CS1302'] },
+      { crn:'54089', code:'GE1203', title:'Intro to Creative Film', day:'Mon', start:'15:00', end:'17:00', credits:2, quotaTotal:30, quotaAvailable:8, requiredMajor:null, prereqs:[] }
+    ];
+    const START_HOUR = 9;
+    const END_HOUR = 22;
+    const studentProfile = { major:'Undeclared', year:1, enrolled:['EE2000','CS1302','GE1501','GE1109'], minCredits:12, maxCredits:18 };
+    const colors = { EE2000:'indigo', CS1302:'sky', GE1501:'emerald', GE1109:'violet' };
+    const days = ['Mon','Tue','Wed','Thu','Fri'];
+    const state = { enrolled:[...studentProfile.enrolled], swapOutId:null, shortlist:[], selectedReplacement:null, handoff:null, finalizedSwapOut:null, browseAll:false, assistantSuggestions:[] };
+    let initialSnapshot = null;
+    let preSwapSnapshot = null;
+    let swapOutHint = false;
+    const $ = (id) => document.getElementById(id);
+    const getCourse = (code) => masterSchedule.find((course) => course.code === code);
+    const toMinutes = (time) => { const [hours, minutes] = time.split(':').map(Number); return hours * 60 + minutes; };
+    function captureSnapshot() {
+      const snapshot = { enrolled:[...state.enrolled], swapOutId:state.swapOutId, selectedReplacement:state.selectedReplacement, handoff:state.handoff ? {...state.handoff} : null, finalizedSwapOut:state.finalizedSwapOut };
+      if (!initialSnapshot) initialSnapshot = snapshot;
+      return snapshot;
+    }
+
+    function validateCourse(course, swapOutId = state.swapOutId) {
+      const reasons = [], warnings = [];
+      if (course.requiredMajor && course.requiredMajor !== studentProfile.major) reasons.push(`Major restricted: requires ${course.requiredMajor} Major; profile is ${studentProfile.major}`);
+      if (course.prereqs.length && !course.prereqs.every((prereq) => state.enrolled.includes(prereq))) reasons.push(`Prerequisite not met: ${course.prereqs.join(', ')}`);
+      if (course.quotaAvailable <= 0) reasons.push('No simulated seats available');
+      if (swapOutId) {
+        const remaining = state.enrolled.filter((code) => code !== swapOutId);
+        const clash = remaining.map(getCourse).find((existing) => existing.day === course.day && toMinutes(course.start) < toMinutes(existing.end) && toMinutes(course.end) > toMinutes(existing.start));
+        if (clash) reasons.push(`Clash with ${clash.code} (${clash.day} ${clash.start}–${clash.end})`);
+        const credits = remaining.reduce((sum, code) => sum + getCourse(code).credits, 0) + course.credits;
+        if (credits < studentProfile.minCredits) reasons.push(`Below minimum ${studentProfile.minCredits} credits`);
+        if (credits > studentProfile.maxCredits) reasons.push(`Above maximum ${studentProfile.maxCredits} credits`);
+        const intervals = {};
+        [...remaining.map(getCourse), course].forEach((item) => { (intervals[item.day] ||= []).push([toMinutes(item.start), toMinutes(item.end)]); });
+        Object.values(intervals).forEach((items) => {
+          items.sort((a,b) => a[0] - b[0]);
+          let start = items[0][0], end = items[0][1];
+          items.slice(1).forEach(([nextStart,nextEnd]) => { if (nextStart <= end) end = Math.max(end,nextEnd); else { if (end-start > 360) warnings.push('Warning: a continuous lecture block exceeds 6 hours'); start=nextStart; end=nextEnd; } });
+          if (end-start > 360) warnings.push('Warning: a continuous lecture block exceeds 6 hours');
+        });
+      }
+      return { ok: reasons.length === 0, status: reasons.length ? 'blocked' : warnings.length ? 'warning' : 'valid', reasons, warnings };
+    }
+
+    function renderHeader() {
+      const credits = state.enrolled.reduce((sum, code) => sum + getCourse(code).credits, 0);
+      $('credit-pill').innerHTML = `Enrolled: <span class="text-indigo-700">${credits.toFixed(1)} / ${studentProfile.maxCredits.toFixed(1)} Credits</span><span class="ml-1 ${credits >= studentProfile.minCredits && credits <= studentProfile.maxCredits ? 'text-emerald-700' : 'text-rose-700'}">· ${credits >= studentProfile.minCredits && credits <= studentProfile.maxCredits ? 'Within 12-18 credits' : 'Review Required'}</span>`;
+    }
+
+    function renderTimetable() {
+      const hourCount = END_HOUR - START_HOUR;
+      const cells = ['<div class="schedule-cell schedule-header bg-slate-50"></div>', ...days.map((day) => `<div class="schedule-cell schedule-header flex items-center justify-center bg-slate-50 text-xs font-bold uppercase tracking-wider text-slate-500">${day}</div>`), `<div style="grid-column:1; grid-row:2 / span 13" class="schedule-cell flex flex-col bg-slate-50 text-[11px] font-semibold text-slate-400">${Array.from({length:hourCount},(_,i)=>`<span style="height:3.25rem" class="flex items-start justify-end pr-2 pt-2">${String(i+START_HOUR).padStart(2,'0')}:00</span>`).join('')}</div>`];
+      for (let row=0; row<hourCount; row++) days.forEach((_, col) => cells.push(`<div class="schedule-cell col-start-${col+2} row-start-${row+2} bg-white"></div>`));
+      const displayed = [...state.enrolled, ...(state.finalizedSwapOut && !state.enrolled.includes(state.finalizedSwapOut) ? [state.finalizedSwapOut] : []), ...(state.selectedReplacement ? [state.selectedReplacement] : [])];
+      displayed.forEach((code) => {
+        const course = getCourse(code), startHour = toMinutes(course.start) / 60, durationHours = (toMinutes(course.end)-toMinutes(course.start))/60;
+        const staged = code === state.selectedReplacement && !state.enrolled.includes(code);
+        const finalizedOld = code === state.finalizedSwapOut;
+        const planned = state.handoff && state.handoff.add === course.crn && state.selectedReplacement === null;
+        const replacementCode = state.selectedReplacement || (state.handoff && getCourse(state.handoff.add)?.code);
+        const originalBeingReplaced = (state.swapOutId === code && state.selectedReplacement) || (finalizedOld && replacementCode);
+        const color = colors[code] || 'indigo';
+        const classes = staged || planned ? 'ghost-block' : `bg-${color}-50 text-${color}-950 ring-1 ring-inset ring-${color}-200`;
+        const label = staged || planned ? 'Preview only, not on AIMS' : originalBeingReplaced ? '🔒 Still enrolled on AIMS' : 'Protected on AIMS';
+        const dismiss = staged ? '<button data-clear-staged class="text-xs font-bold text-cyan-700 hover:text-rose-600 ml-1 px-1">&times;</button>' : '';
+        const replacementLine = originalBeingReplaced ? `<p class="text-xs font-semibold">Will be replaced by ${replacementCode}</p>` : '';
+        const badgeClass = staged || planned ? 'text-xs' : 'text-[10px]';
+        cells.push(`<article draggable="${staged}" data-drag-code="${code}" style="grid-column:${days.indexOf(course.day)+2}; grid-row:${(startHour - START_HOUR) + 2} / span ${durationHours}" class="course-block ${classes}" aria-label="${course.code}, ${course.day} ${course.start} to ${course.end}"><div class="flex items-start justify-between gap-2"><p class="font-bold">${course.code}</p><span>${originalBeingReplaced ? '🔒' : staged || planned ? dismiss : '🔒'}</span></div><p class="mt-1 text-xs font-medium">${course.title}</p>${replacementLine}<span class="mt-3 inline-block max-w-full rounded bg-white/80 px-2 py-1 ${badgeClass} font-semibold">${label}</span></article>`);
+      });
+      $('timetable').innerHTML = cells.join('');
+      document.querySelectorAll('[data-clear-staged]').forEach((button) => button.addEventListener('click', () => { state.selectedReplacement=null; state.handoff=null; render(); }));
+      document.querySelectorAll('[data-drag-code]').forEach((item) => item.addEventListener('dragstart', (event) => { event.dataTransfer.setData('text/plain', item.dataset.dragCode); item.classList.add('dragging'); }));
+      document.querySelectorAll('[data-drag-code]').forEach((item) => item.addEventListener('dragend', () => item.classList.remove('dragging')));
+    }
+
+    function renderSwapOut() {
+      $('swap-out-control').innerHTML = `<span class="text-xs font-semibold text-slate-500">Swap out:</span>${state.enrolled.map((code) => `<button data-swap-out="${code}" class="rounded-full border px-2.5 py-1 text-[10px] font-bold ${state.swapOutId===code ? 'border-indigo-400 bg-indigo-50 text-indigo-800' : swapOutHint ? 'ring-2 ring-cyan-400 ring-offset-1 border-slate-200 bg-white text-slate-500' : 'border-slate-200 bg-white text-slate-500'}">${code}${state.swapOutId===code ? ' · protected' : ''}</button>`).join('')}`;
+      document.querySelectorAll('[data-swap-out]').forEach((button) => button.addEventListener('click', () => { preSwapSnapshot=captureSnapshot(); state.swapOutId = button.dataset.swapOut; state.selectedReplacement = null; state.handoff = null; render(); }));
+    }
+
+    function renderShortlist() {
+      $('shortlist-count').textContent = `${state.shortlist.length} saved`;
+      $('shortlist').innerHTML = state.shortlist.length ? state.shortlist.map((code) => { const course=getCourse(code), result=validateCourse(course), canStage=result.ok && state.swapOutId !== null; return `<div draggable="true" data-shortlist-drag="${code}" class="rounded-lg border ${result.ok ? 'border-indigo-200 bg-white' : 'border-slate-200 bg-slate-100'} p-3"><div class="flex items-start justify-between gap-2"><div><p class="text-xs font-bold ${result.ok ? 'text-slate-900' : 'text-slate-500'}">${course.code} — ${course.title}</p><p class="mt-1 text-[10px] text-slate-500">${course.day} ${course.start}–${course.end}</p></div><button data-remove="${code}" class="text-xs font-bold text-slate-400 hover:text-rose-600" aria-label="Remove ${course.code}">×</button></div><div class="mt-2 flex items-center justify-between gap-2"><span class="text-[10px] font-semibold ${result.ok ? 'text-emerald-700' : 'text-rose-700'}">${result.ok ? 'Ready to stage' : result.reasons[0]}</span><button data-stage="${code}" ${canStage ? '' : 'disabled'} class="rounded-md ${canStage ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'cursor-not-allowed bg-slate-200 text-slate-400'} px-2 py-1 text-[10px] font-bold">${state.swapOutId === null ? 'Select a class to drop first' : 'Stage'}</button></div></div>`; }).join('') : '<p class="rounded-lg border border-dashed border-indigo-200 px-3 py-4 text-center text-xs text-indigo-700">Add a simulated course from the results below.</p>';
+      document.querySelectorAll('[data-remove]').forEach((button) => button.addEventListener('click', () => { state.shortlist=state.shortlist.filter((code)=>code!==button.dataset.remove); render(); }));
+      document.querySelectorAll('[data-stage]').forEach((button) => button.addEventListener('click', () => stageCourse(button.dataset.stage)));
+      document.querySelectorAll('[data-shortlist-drag]').forEach((item) => item.addEventListener('dragstart',(event)=>event.dataTransfer.setData('text/plain',item.dataset.shortlistDrag)));
+    }
+
+    function renderResults() {
+      const query = $('search').value.trim().toLowerCase();
+      const available = masterSchedule.filter((course) => !state.enrolled.includes(course.code) && !state.shortlist.includes(course.code));
+      $('browse-toggle').textContent = state.browseAll ? 'Collapse list ▴' : 'Browse all ▾';
+      if (!query && !state.browseAll) { $('course-results').innerHTML = '<p class="text-xs text-slate-500">Search a code or title to see simulated courses</p>'; return; }
+      const matches = available.filter((course) => state.browseAll || (`${course.code} ${course.title}`).toLowerCase().includes(query));
+      $('course-results').innerHTML = (matches.map((course) => { const result=validateCourse(course), disabled=!result.ok, badge=course.quotaAvailable>0 ? `🟢 ${course.quotaAvailable} Seats Available` : '🔴 Full'; return `<article ${disabled ? '' : `draggable="true" data-result-drag="${course.code}"`} title="${disabled ? result.reasons.join(' · ') : 'Click to add to shortlist or drag to timetable'}" class="rounded-xl border ${disabled ? 'border-slate-200 bg-slate-100 opacity-65' : 'border-slate-200 bg-white hover:border-indigo-300'} p-3"><div class="flex items-start justify-between gap-2"><div><p class="text-xs font-bold ${disabled ? 'text-slate-500' : 'text-slate-900'}">${course.code} — ${course.title}</p><p class="mt-1 text-[10px] text-slate-500">${course.day} ${course.start}–${course.end} · ${course.credits.toFixed(1)} Credits</p></div><span class="shrink-0 text-[10px] font-bold ${course.quotaAvailable ? 'text-emerald-700' : 'text-rose-700'}">${badge}</span></div><p class="mt-2 text-[10px] ${disabled ? 'text-slate-500' : 'text-slate-600'}">${disabled ? `🚫 ${result.reasons.join(' · ')}` : 'Available for simulated rehearsal'}</p><button data-add="${course.code}" ${disabled ? 'disabled' : ''} class="mt-3 w-full rounded-lg ${disabled ? 'cursor-not-allowed bg-slate-200 text-slate-400' : 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100'} px-3 py-2 text-[10px] font-bold">${disabled ? 'Ineligible' : 'Add to shortlist'}</button></article>`; }).join('') || '<p class="text-xs text-slate-500">No simulated courses match this search.</p>') + (state.browseAll && matches.length > 0 ? '<button id="close-browse-bottom" class="mt-2 w-full py-2 text-center text-xs font-bold text-slate-500 hover:text-slate-800 bg-slate-100 rounded-lg">▴ Close course list</button>' : '');
+      document.querySelectorAll('[data-add]').forEach((button) => button.addEventListener('click', () => { if (!state.shortlist.includes(button.dataset.add)) state.shortlist.push(button.dataset.add); render(); }));
+      document.querySelectorAll('[data-result-drag]').forEach((item) => item.addEventListener('dragstart', (event) => event.dataTransfer.setData('text/plain', item.dataset.resultDrag)));
+      $('close-browse-bottom')?.addEventListener('click', () => { state.browseAll=false; render(); });
+    }
+
+    function renderAudit() {
+      const course = state.selectedReplacement ? getCourse(state.selectedReplacement) : null;
+      if (state.selectedReplacement && !state.swapOutId) {
+        $('audit').innerHTML = '<div class="rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs font-semibold text-amber-900">⚠️ Pick the class to swap out first from the top of the timetable.</div>';
+        return;
+      }
+      if (!course && state.handoff) {
+        const handoff = state.handoff;
+        const replacement = getCourse(handoff.add);
+        const original = getCourse(handoff.drop);
+        const creditsAfterDrop = state.enrolled.reduce((sum, code) => sum + getCourse(code).credits, 0) - replacement.credits;
+        const dropWarning = `⚠️ AIMS forces you to drop first. After dropping ${original.code} you will be at ${creditsAfterDrop} credits${creditsAfterDrop < 12 ? ', below the 12-credit full-time minimum' : ''}, until your add succeeds. Check live seats right before you drop.`;
+        const guide = handoff.manual ? `<div class="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-2.5 text-xs font-semibold text-amber-900">${dropWarning}</div><ol class="mt-4 list-decimal space-y-2 pl-5 text-xs leading-5 text-indigo-900"><li>Check live seats for the add CRN <strong>${handoff.add}</strong>.</li><li>Drop the old course using its CRN <strong>${handoff.drop}</strong>.</li><li>Add the new course using its CRN <strong>${handoff.add}</strong> straight away.</li><li>Confirm the new seat shows in AIMS.</li></ol><p class="mt-4 text-xs leading-5 text-indigo-900">If the add fails, try to add the old course back right away. Its seat may already be taken.</p>` : `<div class="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-2.5 text-xs font-semibold text-amber-900">${dropWarning}</div><p class="mt-4 text-xs leading-5 text-indigo-900">Auto-stage preview prepared. Review the visual timetable, then enter any changes manually.</p>`;
+        const heading = handoff.manual ? 'Validated manual handoff' : 'Auto-staged preview ready';
+        $('audit').innerHTML = `<div class="rounded-xl border border-indigo-200 bg-indigo-50 p-4"><p class="text-xs font-bold uppercase tracking-wider text-indigo-700">AIMS Quick-Entry Card · ${handoff.mode}</p><h4 class="mt-2 text-lg font-bold text-indigo-950">${heading}</h4><div class="mt-4 grid grid-cols-2 gap-3"><div class="rounded-lg bg-white p-3"><p class="text-[10px] font-bold uppercase text-slate-400">Drop CRN</p><p class="mt-1 font-mono text-xl font-bold text-slate-900">${handoff.drop}</p><button data-copy="${handoff.drop}" class="mt-2 text-[10px] font-bold text-indigo-700">Copy drop CRN</button></div><div class="rounded-lg bg-white p-3"><p class="text-[10px] font-bold uppercase text-slate-400">Add CRN</p><p class="mt-1 font-mono text-xl font-bold text-slate-900">${handoff.add}</p><button data-copy="${handoff.add}" class="mt-2 text-[10px] font-bold text-indigo-700">Copy add CRN</button></div></div>${guide}<p class="mt-4 text-xs leading-5 text-indigo-900">Nothing is submitted to AIMS. Use these validated steps manually when you are ready.</p></div>`;
+        bindCopyButtons();
+        return;
+      }
+      if (!course) { $('audit').innerHTML=''; return; }
+      const result=validateCourse(course);
+      $('audit').innerHTML = `<div class="rounded-xl border ${result.ok ? 'border-emerald-200 bg-emerald-50' : 'border-rose-200 bg-rose-50'} p-4"><h4 class="text-sm font-bold ${result.ok ? 'text-emerald-900' : 'text-rose-900'}">Live rehearsal audit</h4><div class="mt-3 space-y-2 text-xs">${result.ok ? '<p class="font-semibold text-emerald-800">✓ Zero blocking conflicts</p>' : result.reasons.map((reason)=>`<p class="text-rose-800">✕ ${reason}</p>`).join('')}${result.warnings.map((warning)=>`<p class="text-amber-800">⚠ ${warning}</p>`).join('')}<p class="text-slate-700">Quota: ${course.quotaAvailable}/${course.quotaTotal} open · ${state.swapOutId ? `Original ${state.swapOutId} remains protected` : ''}</p></div>${result.ok && state.swapOutId ? '<button id="review-swap" class="mt-4 w-full rounded-lg bg-indigo-600 px-3 py-2.5 text-xs font-bold text-white hover:bg-indigo-700">Review Swap Execution</button>' : ''}</div>`;
+      $('review-swap')?.addEventListener('click', () => { $('gate-modal').classList.remove('hidden'); $('gate-modal').classList.add('flex'); });
+    }
+
+    function bindCopyButtons() {
+      document.querySelectorAll('[data-copy]').forEach((button)=>button.addEventListener('click',()=>{ if (!navigator.clipboard) { button.textContent='Copy unavailable'; return; } navigator.clipboard.writeText(button.dataset.copy).then(()=>{button.textContent='Copied'}).catch(()=>{button.textContent='Copy unavailable'}); }));
+    }
+
+    function stageCourse(code) { if (state.swapOutId === null) { swapOutHint=true; render(); setTimeout(() => { swapOutHint=false; render(); }, 1500); return; } preSwapSnapshot=captureSnapshot(); state.selectedReplacement=code; render(); }
+    function assistantReply() {
+      const request=$('assistant-input').value.trim().toLowerCase(), dayAliases={mon:['mon','monday'],tue:['tue','tues','tuesday'],wed:['wed','wednesday'],thu:['thu','thur','thurs','thursday'],fri:['fri','friday']}, requestedDay=Object.entries(dayAliases).find(([,aliases])=>aliases.some((alias)=>new RegExp(`\\b${alias}\\b`).test(request)))?.[0], invalidDay=/\b(saturday|sunday|sat|sun)\b/.test(request), wantsGE=/\bge\b/.test(request), timeFilter=request.includes('morning')||request.includes('evening');
+      state.assistantSuggestions=[];
+      if (invalidDay || (!requestedDay && !wantsGE && !timeFilter)) $('assistant-reply').textContent='I can only search simulated GE courses by day (Mon-Fri) here. Try: find GE on Tuesday evening.';
+      else {
+        const candidates=masterSchedule.filter((course)=>!state.enrolled.includes(course.code)&&!state.shortlist.includes(course.code)&&(!requestedDay||course.day.toLowerCase()===requestedDay)&&(!wantsGE||course.code.startsWith('GE'))&&(!timeFilter||(request.includes('morning') ? toMinutes(course.start)<720 : toMinutes(course.start)>=720))).map((course)=>({course,result:validateCourse(course)}));
+        state.assistantSuggestions=candidates.slice(0,3).map(({course,result})=>({code:course.code,reason:result.ok ? `No clash · ${course.credits.toFixed(0)} credits · ${course.quotaAvailable} seats open` : result.reasons.join(' · '),ok:result.ok}));
+        $('assistant-reply').textContent=candidates.length?'Here are up to three simulated suggestions.':'No matching simulated course was found.';
+      }
+      $('assistant-reply').classList.remove('hidden'); render();
+    }
+
+    function renderAssistantSuggestions() {
+      const panel=$('assistant-suggestions');
+      if (!state.assistantSuggestions.length) { panel.classList.add('hidden'); panel.innerHTML=''; return; }
+      panel.classList.remove('hidden');
+      panel.innerHTML=`<div class="flex items-center justify-between"><h4 class="text-sm font-bold text-indigo-950">Assistant suggestions</h4><button id="clear-suggestions" class="text-[10px] font-bold text-indigo-700">Clear suggestions</button></div><div class="mt-3 space-y-2">${state.assistantSuggestions.map((suggestion)=>{const course=getCourse(suggestion.code);return `<div class="rounded-lg bg-white p-3"><p class="text-xs font-bold text-slate-900">${course.code} — ${course.title}</p><p class="mt-1 text-[10px] text-slate-600">${suggestion.reason}</p>${suggestion.ok?`<button data-assistant-add="${course.code}" class="mt-2 rounded-md bg-indigo-600 px-2 py-1 text-[10px] font-bold text-white">Add to shortlist</button>`:''}<button data-assistant-dismiss="${course.code}" class="ml-2 mt-2 text-[10px] font-bold text-slate-500">Dismiss</button></div>`;}).join('')}</div>`;
+      $('clear-suggestions').addEventListener('click',()=>{state.assistantSuggestions=[];render();});
+      document.querySelectorAll('[data-assistant-add]').forEach((button)=>button.addEventListener('click',()=>{state.shortlist.push(button.dataset.assistantAdd);state.assistantSuggestions=state.assistantSuggestions.filter((item)=>item.code!==button.dataset.assistantAdd);render();}));
+      document.querySelectorAll('[data-assistant-dismiss]').forEach((button)=>button.addEventListener('click',()=>{state.assistantSuggestions=state.assistantSuggestions.filter((item)=>item.code!==button.dataset.assistantDismiss);render();}));
+    }
+
+    function render() { renderHeader(); renderTimetable(); renderSwapOut(); renderShortlist(); renderResults(); renderAudit(); renderAssistantSuggestions(); $('revert-btn').classList.toggle('hidden', !(state.selectedReplacement !== null || state.handoff !== null || state.finalizedSwapOut !== null)); }
+    $('search').addEventListener('input', () => { state.browseAll=false; renderResults(); });
+    $('browse-toggle').addEventListener('click', () => { state.browseAll=!state.browseAll; renderResults(); });
+    $('assistant-btn').addEventListener('click', assistantReply);
+    $('assistant-input').addEventListener('keydown',(event)=>{if(event.key==='Enter')assistantReply();});
+    $('timetable').addEventListener('dragover',(event)=>event.preventDefault());
+    $('timetable').addEventListener('drop',(event)=>{event.preventDefault(); const code=event.dataTransfer.getData('text/plain'); if(code && !state.enrolled.includes(code)) { if(!state.shortlist.includes(code)) state.shortlist.push(code); stageCourse(code); }});
+    $('close-modal').addEventListener('click',()=>{$('gate-modal').classList.add('hidden');$('gate-modal').classList.remove('flex');});
+    function finalize(mode) { if (state.swapOutId === null) return; preSwapSnapshot=captureSnapshot(); const replacement=getCourse(state.selectedReplacement), original=getCourse(state.swapOutId); state.handoff={mode,drop:original.crn,add:replacement.crn,manual:mode==='Manual CRN guide'}; $('gate-modal').classList.add('hidden');$('gate-modal').classList.remove('flex'); state.finalizedSwapOut=original.code; state.enrolled=[...state.enrolled.filter((code)=>code!==original.code),state.selectedReplacement]; state.selectedReplacement=null; state.swapOutId=null; render(); }
+    $('auto-stage').addEventListener('click',()=>finalize('Auto-staged preview'));
+    $('manual-guide').addEventListener('click',()=>finalize('Manual CRN guide'));
+    $('revert-btn').addEventListener('click',()=>{ const snapshot=initialSnapshot || preSwapSnapshot; if (!snapshot) return; state.enrolled=[...snapshot.enrolled]; state.swapOutId=snapshot.swapOutId; state.selectedReplacement=snapshot.selectedReplacement; state.handoff=snapshot.handoff ? {...snapshot.handoff} : null; state.finalizedSwapOut=snapshot.finalizedSwapOut; render(); });
+    $('reset-btn').addEventListener('click',()=>{state.enrolled=[...studentProfile.enrolled];state.swapOutId=null;state.shortlist=[];state.selectedReplacement=null;state.handoff=null;state.finalizedSwapOut=null;state.browseAll=false;state.assistantSuggestions=[];$('assistant-reply').classList.add('hidden');$('search').value='';render();});
+    captureSnapshot();
+    render();
+  </script>
+</body>
+</html>
