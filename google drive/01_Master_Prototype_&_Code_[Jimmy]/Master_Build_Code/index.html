@@ -65,6 +65,20 @@
       text-decoration: none;
     }
 
+    /* Top-Level App & Landing Page Wrappers (Prototype v2.1) */
+    .app-layout {
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      width: 100%;
+    }
+    .landing-page-wrapper {
+      min-height: 100vh;
+      background: var(--page);
+      color: var(--text);
+      font-family: var(--font-sans);
+    }
+
     /* App Shell Layout */
     .app-header {
       height: var(--topbar-height);
@@ -1478,9 +1492,13 @@
   </style>
 </head>
 <body>
+  <!-- 1. FULL-WIDTH LANDING PAGE CONTAINER (Loads on initial boot) -->
+  <div id="landingView" class="landing-page-wrapper"></div>
 
-  <!-- Application Topbar -->
-  <header class="app-header">
+  <!-- 2. EXISTING REHEARSAL DASHBOARD CONTAINER (Initially hidden) -->
+  <div id="dashboardView" class="app-layout" style="display: none;">
+    <!-- Top Global App Header -->
+    <header class="app-header">
     <div class="brand-group">
       <div class="brand-mark" aria-hidden="true">CP</div>
       <div class="brand-text">
@@ -1829,6 +1847,7 @@
 
     </main>
   </div>
+  </div><!-- /#dashboardView -->
 
   <!-- ============================================== -->
   <!-- HUMAN-IN-THE-LOOP CONTROL GATE MODAL (US-007)  -->
