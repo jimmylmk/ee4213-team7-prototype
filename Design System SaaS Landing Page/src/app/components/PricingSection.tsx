@@ -20,9 +20,9 @@ const steps = [
     step: "Step 02",
     title: "Validate Safety Invariants",
     badge: "Automatic Guard",
-    description: "The engine runs instant checks across lecture hours, exam schedules, and off-campus placements.",
+    description: "The engine runs instant checks across lecture hours, exam schedules, and personal time blocks.",
     features: [
-      "12.0 credit minimum visa floor validation",
+      "12.0-credit full-time minimum load validation",
       "Conflict radar alerts with priority resolution",
       "Prerequisite chain verification"
     ]

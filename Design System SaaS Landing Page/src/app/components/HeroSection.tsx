@@ -53,7 +53,7 @@ export function HeroSection() {
         </h1>
         <p className="mx-auto max-w-2xl text-base md:text-lg text-muted-foreground mb-8">
           CityU EE4213 Team #7: Unified Course Planning & Safe-Swap Rehearsal Sandbox.
-          Direct manipulation schedule canvas, real-time conflict radar, 12.0-credit visa floor protection, and human-in-the-loop control gates.
+          Direct manipulation schedule canvas, real-time conflict radar, 12.0-credit full-time minimum load protection, and human-in-the-loop control gates.
         </p>
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16">
           <Button size="lg" className="w-full sm:w-auto bg-[#171717] text-white hover:bg-[#6c4cff] transition-all px-8" asChild>
@@ -75,13 +75,13 @@ export function HeroSection() {
             {/* Center Main Stage Card */}
             <div className="floating-card absolute top-12 left-1/2 -translate-x-1/2 w-80 md:w-96 bg-white border border-black/10 rounded-2xl shadow-xl p-5 text-left transform-gpu z-20">
               <div className="flex items-center justify-between mb-2">
-                <span className="font-mono text-xs font-bold text-[#6c4cff]">EE4213</span>
+                <span className="font-mono text-xs font-bold text-[#6c4cff]">EE2000</span>
                 <span className="font-mono text-[10px] bg-[#d9ff63] text-[#171717] px-2 py-0.5 font-bold uppercase rounded">
-                  [Enrolled · Protected on AIMS]
+                  [12.0 Credits Enrolled · Protected]
                 </span>
               </div>
-              <h3 className="font-semibold text-sm mb-1">Human-Computer Interaction</h3>
-              <p className="text-xs text-muted-foreground mb-3">Mon 10:00–12:00 · LT-4 · 3.0 Credits</p>
+              <h3 className="font-semibold text-sm mb-1">Engineering Foundations</h3>
+              <p className="text-xs text-muted-foreground mb-3">Wed 14:00–16:00 · 3.0 Credits</p>
               <div className="flex items-center justify-between border-t pt-2 text-[11px] text-muted-foreground">
                 <span>CRN 51001</span>
                 <span className="text-green-600 font-medium">No schedule clash</span>
@@ -91,23 +91,24 @@ export function HeroSection() {
             {/* Left Staged Preview Card */}
             <div className="floating-card absolute top-28 left-4 md:left-12 w-72 bg-white border-2 border-dashed border-[#6c4cff] rounded-2xl shadow-lg p-4 text-left transform-gpu z-10 hidden sm:block">
               <div className="flex items-center justify-between mb-1">
-                <span className="font-mono text-xs font-bold text-[#171717]">CS3334</span>
+                <span className="font-mono text-xs font-bold text-[#171717]">GE1907</span>
                 <span className="font-mono text-[9px] bg-[#ece9ff] text-[#34266f] px-1.5 py-0.5 rounded font-semibold">
                   [Staged Preview]
                 </span>
               </div>
-              <h4 className="font-medium text-xs">Data Structures & Algorithms</h4>
-              <p className="text-[11px] text-muted-foreground">Mon 16:00–19:00 · 8 Seats Open</p>
+              <h4 className="font-medium text-xs">Asian Cities & Culture</h4>
+              <p className="text-[11px] text-muted-foreground mb-1">Fri 10:00–12:00 · 11 Seats Open</p>
+              <div className="text-[10px] text-green-600 font-medium">No Schedule Clash</div>
             </div>
 
-            {/* Right Visa Guard Badge Card */}
+            {/* Right Full-Time Load Guard Badge Card */}
             <div className="floating-card absolute top-36 right-4 md:right-12 w-64 bg-white border border-black/10 rounded-2xl shadow-lg p-4 text-left transform-gpu z-10 hidden sm:block">
               <div className="flex items-center gap-2 mb-1">
                 <ShieldCheck className="h-4 w-4 text-green-600" />
-                <span className="font-semibold text-xs">Visa Floor Protected</span>
+                <span className="font-semibold text-xs">Full-Time Minimum Load Protected</span>
               </div>
               <div className="text-xs text-muted-foreground">
-                Total Credits: <span className="font-bold text-foreground">15.0 CR</span> (Minimum: 12.0 CR)
+                Total Credits: <span className="font-bold text-foreground">12.0 CR</span> (Minimum: 12.0 CR)
               </div>
             </div>
 

@@ -15,7 +15,7 @@ export function TestimonialsSection() {
             Designed around real student challenges
           </h2>
           <p className="max-w-2xl mx-auto text-base md:text-lg text-muted-foreground">
-            Constructed from 3 in-depth student usability sessions and the Semester A registration guidelines.
+            Synthesized from CityU Semester A registration constraints and student course planning challenges.
           </p>
         </div>
 
@@ -35,13 +35,13 @@ export function TestimonialsSection() {
                       </Badge>
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      BSc Computer Science · Year 3 · Full-Time International Student (SID 55412980)
+                      Year 2 · BEng Computer and Data Engineering · Full-Time Student (SID 55412980)
                     </p>
                   </div>
                 </div>
                 <div className="text-left sm:text-right font-mono text-xs text-muted-foreground">
-                  <div>Enrolled: <span className="font-bold text-foreground">15.0 Credits</span></div>
-                  <div>Visa Floor: <span className="font-bold text-green-600">&gt;= 12.0 Credits</span></div>
+                  <div>Enrolled: <span className="font-bold text-foreground">12.0 Credits</span></div>
+                  <div>Full-Time Min Load: <span className="font-bold text-green-600">&gt;= 12.0 Credits</span></div>
                 </div>
               </div>
 
@@ -52,8 +52,8 @@ export function TestimonialsSection() {
                     Registration Constraints & Goals
                   </div>
                   <ul className="list-disc pl-4 space-y-1 text-muted-foreground">
-                    <li>Holds an off-campus Tech Placement commitment on Mon & Thu mornings (09:00–13:00).</li>
-                    <li>Must maintain at least 12.0 credits to satisfy student visa full-time study requirements.</li>
+                    <li>Blocks personal time on Mon & Thu mornings (09:00–13:00).</li>
+                    <li>Must maintain at least 12.0 credits to satisfy full-time minimum credit load requirements.</li>
                     <li>Needs to swap an elective for continuous coursework without risking his registered seats.</li>
                   </ul>
                 </div>
@@ -61,13 +61,13 @@ export function TestimonialsSection() {
                 <div className="space-y-2 bg-[#f8f7f3] p-4 rounded-xl border border-black/5">
                   <div className="font-semibold text-sm text-[#171717] flex items-center gap-2">
                     <Shield className="h-4 w-4 text-green-600" />
-                    HCI Usability Observation
+                    Target User Design Goal
                   </div>
-                  <p className="text-muted-foreground italic">
-                    "Marcus hesitated to touch AIMS Add/Drop because dropping a course drops credits to 9.0 momentarily. The Safe-Swap sandbox lets him stage, verify, and resolve all conflicts before any real change occurs."
+                  <p className="text-muted-foreground">
+                    Students hesitate to modify schedules on AIMS because dropping a 3-credit course momentarily drops their load to 9.0 credits, violating full-time minimum load. The SafeSwap sandbox provides a risk-free rehearsal environment to stage, verify, and resolve conflicts before committing changes.
                   </p>
                   <p className="font-mono text-[10px] text-muted-foreground pt-1">
-                    — Usability Testing Session #1 Observer Log
+                    — CityU EE4213 SafeSwap Problem Statement
                   </p>
                 </div>
               </div>

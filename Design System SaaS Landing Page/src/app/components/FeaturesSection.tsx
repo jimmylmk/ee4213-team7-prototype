@@ -21,13 +21,13 @@ const capabilities = [
   {
     icon: AlertTriangle,
     title: "Conflict Priority Radar",
-    description: "Detects lecture clashes, exam time collisions, and off-campus Tech Placement overlaps (Mon/Thu) in real-time.",
+    description: "Detects lecture clashes, exam time collisions, and Personal Time Block overlaps (Mon/Thu) in real time.",
     badge: "Safety"
   },
   {
     icon: ShieldCheck,
-    title: "12.0 Visa Floor Guard",
-    description: "Guards against accidental drops below the mandatory full-time student visa threshold, preventing registration lockouts.",
+    title: "12.0-Credit Full-Time Load Guard",
+    description: "Guards against accidental drops below the mandatory full-time minimum credit load threshold, preventing registration lockouts.",
     badge: "Compliance"
   },
   {
