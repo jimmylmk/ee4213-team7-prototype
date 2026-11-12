@@ -16,13 +16,15 @@ import {
   RotateCcw,
   Menu,
   ChevronRight,
-  Plus
+  Plus,
+  Info
 } from "lucide-react";
 import {
   masterSchedule,
   blogPosts,
   studentProfile,
   validateCourse,
+  parseMinutes,
   Course,
   BlogPost
 } from "../data/courseData";
@@ -31,6 +33,16 @@ import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'] as const;
+
+const courseDescriptions: Record<string, string> = {
+  'EE4213': 'Direct manipulation interfaces, heuristic evaluation, Norman design models, cognitive affordances, and user-centered interface architecture.',
+  'CS3334': 'Fundamental algorithms, tree structures, graph analysis, and sorting techniques.',
+  'EE2000': 'Foundational circuits, system response, signal processing primitives, and laboratory analysis.',
+  'CS1302': 'Structured algorithmic programming, memory concepts, dynamic data structures, and computational thinking in modern software.',
+  'GE1501': 'Interdisciplinary university transitions, critical societal inquiry, ethics in technology, and academic leadership.',
+  'GE1109': 'Cross-cultural comparative frameworks, artistic identity, contemporary societies, and global interaction patterns.',
+  'GE1907': 'Architectural urbanization, spatial development, heritage preservation, and studio design inquiries across East Asian metropolises.'
+};
 
 export function Dashboard() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -52,7 +64,7 @@ export function Dashboard() {
   const [searchQuery, setSearchQuery] = useState('');
 
   // Course Inspector State
-  const [inspectorCourseCode, setInspectorCourseCode] = useState<string>('EE4213');
+  const [inspectorCourseCode, setInspectorCourseCode] = useState<string>('CS3334');
 
   // Control Gate Modal State
   const [controlGateOpen, setControlGateOpen] = useState(false);
@@ -140,7 +152,6 @@ export function Dashboard() {
   // Filtered Catalogue
   const filteredCatalogue = useMemo(() => {
     let list = masterSchedule.filter(c => {
-      // Don't show currently enrolled unless it is the swapOut course
       if (enrolled.includes(c.code) && swapOutId !== c.code) return false;
       return true;
     });
@@ -211,9 +222,77 @@ export function Dashboard() {
     setHandoffStep3(false);
   };
 
+  // Inspector Course Object & Dynamic Diagnostics
   const inspectorCourse = useMemo(() => {
     return masterSchedule.find(c => c.code === inspectorCourseCode) || masterSchedule[0];
   }, [inspectorCourseCode]);
+
+  const scheduleFitDiagnostics = useMemo(() => {
+    const isEnrolled = enrolled.includes(inspectorCourse.code);
+    const isStaged = selectedReplacement === inspectorCourse.code;
+
+    if (isEnrolled) {
+      return {
+        text: `[STATUS: CURRENTLY ENROLLED · ${inspectorCourse.credits.toFixed(1)} CR]`,
+        color: 'text-[#6c4cff] bg-[#ece9ff] border-[#d9ccff]',
+        isAlert: false
+      };
+    }
+    if (isStaged) {
+      return {
+        text: `[STATUS: STAGED ON TIMETABLE PREVIEW]`,
+        color: 'text-cyan-800 bg-cyan-100 border-cyan-200',
+        isAlert: false
+      };
+    }
+
+    const projectedEnrolled = enrolled.filter(c => c !== swapOutId);
+    const clashCourse = projectedEnrolled.map(code => masterSchedule.find(c => c.code === code)).find(existing => {
+      if (!existing) return false;
+      return existing.day === inspectorCourse.day &&
+        parseMinutes(inspectorCourse.start) < parseMinutes(existing.end) &&
+        parseMinutes(inspectorCourse.end) > parseMinutes(existing.start);
+    });
+
+    if (clashCourse) {
+      return {
+        text: `[TIMETABLE CLASH: OVERLAPS WITH ${clashCourse.code} (${clashCourse.day} ${clashCourse.start}-${clashCourse.end})]`,
+        color: 'text-red-700 bg-red-50 border-red-200',
+        isAlert: true
+      };
+    }
+
+    if (outsideCommitments && inspectorCourse.day === 'Mon' && parseMinutes(inspectorCourse.start) < 13 * 60 && parseMinutes(inspectorCourse.end) > 9 * 60) {
+      return {
+        text: `[SCHEDULE FIT: FITS CLASSES · OVERLAPS TECH PLACEMENT (MON 09:00–13:00)]`,
+        color: 'text-amber-800 bg-amber-50 border-amber-200',
+        isAlert: true
+      };
+    }
+
+    return {
+      text: `[SCHEDULE FIT: NO CLASH WITH YOUR SCHEDULE]`,
+      color: 'text-green-800 bg-green-50 border-green-200',
+      isAlert: false
+    };
+  }, [enrolled, swapOutId, selectedReplacement, inspectorCourse, outsideCommitments]);
+
+  // Workload Hour Segments
+  const workloadMetrics = useMemo(() => {
+    const lecH = 2;
+    const tutH = 1;
+    const labH = inspectorCourse.category === 'stem' ? 2 : 0;
+    const projH = inspectorCourse.groupPct >= 25 ? 3 : 2;
+    const prepH = inspectorCourse.examPct >= 50 ? 5 : 3;
+    const totalH = lecH + tutH + labH + projH + prepH;
+    return { lecH, tutH, labH, projH, prepH, totalH };
+  }, [inspectorCourse]);
+
+  // Matching blog posts
+  const inspectorMatchingBlogs = useMemo(() => {
+    const matching = blogPosts.filter(p => p.courseCode === inspectorCourse.code);
+    return matching.length > 0 ? matching : blogPosts.slice(0, 2);
+  }, [inspectorCourse]);
 
   return (
     <div className="min-h-screen bg-[#f5f4ef] font-sans text-[#171717] flex">
@@ -505,7 +584,7 @@ export function Dashboard() {
                 </div>
               )}
 
-              {/* Two-Column Grid: Left Timetable Canvas + Right Catalogue Bay */}
+              {/* Two-Column Grid: Left Timetable Calendar + Right Catalogue Bay */}
               <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
                 {/* Left 8 Columns: Weekly Timetable Calendar */}
                 <div className="xl:col-span-8 bg-white border border-black/10 rounded-2xl p-5 shadow-sm">
@@ -529,7 +608,6 @@ export function Dashboard() {
 
                   <div className="grid grid-cols-5 gap-3 min-h-[500px]">
                     {DAYS.map(day => {
-                      // Get all enrolled courses for this day
                       const dayEnrolled = enrolledCourses.filter(c => c.day === day);
                       const isStagedOnDay = stagedCourse && stagedCourse.day === day;
                       const hasPlacement = outsideCommitments && (day === 'Mon' || day === 'Thu');
@@ -740,134 +818,394 @@ export function Dashboard() {
             </div>
           )}
 
-          {/* TAB 2: COURSE INSPECTOR */}
+          {/* TAB 2: COURSE INSPECTOR & WORKLOAD DIAGNOSTICS (EXACT ORIGINAL HCI FEATURES IN NEW SAAS STYLE) */}
           {activeTab === 'inspector' && (
-            <div className="max-w-4xl mx-auto space-y-6">
-              <div className="flex items-center justify-between border-b border-black/10 pb-5">
+            <div className="max-w-5xl mx-auto space-y-6">
+              {/* Header with Breadcrumb and Dropdown */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-black/10 pb-5">
                 <div>
-                  <p className="font-mono text-xs uppercase tracking-[0.18em] text-[#6c4cff] mb-1">
-                    Syllabus & Schedule Fit
-                  </p>
-                  <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
-                    Course Deep-Dive: {inspectorCourse.code}
-                  </h1>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {inspectorCourse.title} · CRN {inspectorCourse.crn} · {inspectorCourse.credits.toFixed(1)} Credits
-                  </p>
-                </div>
-
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => changeTab('rehearsal')}
-                  className="text-xs border-black/15 bg-white"
-                >
-                  <ArrowLeft className="h-3.5 w-3.5 mr-1" />
-                  Return to Timetable
-                </Button>
-              </div>
-
-              {/* Course Selector Strip */}
-              <div className="bg-white border border-black/10 p-4 rounded-xl shadow-sm flex items-center justify-between gap-4">
-                <span className="text-xs font-semibold">Select Course to Inspect:</span>
-                <select
-                  value={inspectorCourseCode}
-                  onChange={(e) => setInspectorCourseCode(e.target.value)}
-                  className="border border-black/15 bg-[#f8f7f3] rounded-lg px-3 py-1.5 text-xs font-mono outline-none"
-                >
-                  {masterSchedule.map(c => (
-                    <option key={c.code} value={c.code}>
-                      {c.code} — {c.title} ({c.day} {c.start})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Assessment Breakdown Card */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="bg-white border border-black/10 rounded-2xl p-6 shadow-sm space-y-4">
-                  <h3 className="text-sm font-bold border-b pb-2">Assessment Distribution</h3>
-                  
-                  <div>
-                    <div className="flex justify-between text-xs mb-1">
-                      <span>Continuous Coursework</span>
-                      <span className="font-bold">{inspectorCourse.courseworkPct}%</span>
-                    </div>
-                    <div className="w-full bg-[#eeece6] h-2.5 rounded-full overflow-hidden">
-                      <div className="bg-[#6c4cff] h-full" style={{ width: `${inspectorCourse.courseworkPct}%` }} />
-                    </div>
-                  </div>
-
-                  <div>
-                    <div className="flex justify-between text-xs mb-1">
-                      <span>Final Examination</span>
-                      <span className="font-bold">{inspectorCourse.examPct}%</span>
-                    </div>
-                    <div className="w-full bg-[#eeece6] h-2.5 rounded-full overflow-hidden">
-                      <div className="bg-[#ff7357] h-full" style={{ width: `${inspectorCourse.examPct}%` }} />
-                    </div>
-                  </div>
-
-                  <div>
-                    <div className="flex justify-between text-xs mb-1">
-                      <span>Group Project Ratio</span>
-                      <span className="font-bold">{inspectorCourse.groupPct}%</span>
-                    </div>
-                    <div className="w-full bg-[#eeece6] h-2.5 rounded-full overflow-hidden">
-                      <div className="bg-[#d9ff63] h-full" style={{ width: `${inspectorCourse.groupPct}%` }} />
-                    </div>
-                  </div>
-
-                  <p className="text-[11px] text-muted-foreground pt-2">
-                    Honest syllabus splits sourced directly from CityU Course Syllabus Database. No speculative GPA predictors.
-                  </p>
-                </div>
-
-                {/* Schedule Fit and Prerequisite Card */}
-                <div className="bg-white border border-black/10 rounded-2xl p-6 shadow-sm space-y-4">
-                  <h3 className="text-sm font-bold border-b pb-2">Schedule Fit & Prerequisites</h3>
-
-                  <div>
-                    <span className="text-xs font-semibold text-muted-foreground">Class Schedule:</span>
-                    <p className="text-xs font-mono font-bold mt-0.5">
-                      {inspectorCourse.day} {inspectorCourse.start}–{inspectorCourse.end} (3 Hours Weekly)
-                    </p>
-                  </div>
-
-                  <div>
-                    <span className="text-xs font-semibold text-muted-foreground">Prerequisite Requirements:</span>
-                    {inspectorCourse.prereqs.length > 0 ? (
-                      <div className="flex items-center gap-2 mt-1">
-                        {inspectorCourse.prereqs.map(req => (
-                          <Badge key={req} className="bg-[#fef3c7] text-[#92400e] border border-[#fde68a] font-mono text-xs">
-                            Requires {req}
-                          </Badge>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="text-xs text-green-700 font-medium mt-0.5">None (Open Prerequisite)</p>
-                    )}
-                  </div>
-
-                  <div>
-                    <span className="text-xs font-semibold text-muted-foreground">Current Quota:</span>
-                    <p className="text-xs font-mono mt-0.5">
-                      {inspectorCourse.quotaAvailable} available / {inspectorCourse.quotaTotal} capacity
-                    </p>
-                  </div>
-
-                  <div className="pt-3 border-t">
+                  <div className="flex items-center gap-2 mb-1.5">
                     <Button
-                      onClick={() => {
-                        handleStageCourse(inspectorCourse.code);
-                        changeTab('rehearsal');
-                      }}
-                      className="w-full bg-[#171717] text-white hover:bg-[#6c4cff] text-xs h-9"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => changeTab('rehearsal')}
+                      className="text-xs h-7 px-2.5 border-black/15 bg-white font-mono hover:bg-black/5"
                     >
-                      Stage {inspectorCourse.code} in Weekly Timetable &rarr;
+                      <ArrowLeft className="h-3.5 w-3.5 mr-1" />
+                      Return to Weekly Timetable
                     </Button>
                   </div>
+                  <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
+                    Course Inspector &amp; Workload Diagnostics
+                  </h1>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    US-013 to US-016 · Static Syllabus Assessment Badges, Provenance Boundaries &amp; 13-Week Deliverable Strip
+                  </p>
                 </div>
+
+                <div className="flex items-center gap-2">
+                  <label htmlFor="inspectorCourseSelect" className="text-xs font-semibold text-muted-foreground whitespace-nowrap">
+                    Select Course:
+                  </label>
+                  <select
+                    id="inspectorCourseSelect"
+                    value={inspectorCourseCode}
+                    onChange={(e) => setInspectorCourseCode(e.target.value)}
+                    className="border border-black/15 bg-white rounded-lg px-3 py-1.5 text-xs font-mono outline-none shadow-xs"
+                  >
+                    {masterSchedule.map(c => (
+                      <option key={c.code} value={c.code}>
+                        {c.code} — {c.title} ({c.day} {c.start})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Main Inspector 2-Column Layout */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                
+                {/* Left 6 Columns: Metadata, Badges, Workload Meter & Provenance Boundaries */}
+                <div className="lg:col-span-6 space-y-6">
+                  {/* Card 1: Course Big Header & Dynamic Badges */}
+                  <div className="bg-white border border-black/10 rounded-2xl p-6 shadow-sm space-y-4">
+                    <div className="border-b border-black/10 pb-3">
+                      <div className="flex items-center justify-between">
+                        <span className="font-mono text-2xl font-bold text-[#171717]">{inspectorCourse.code}</span>
+                        <span className="font-mono text-xs text-muted-foreground">CRN {inspectorCourse.crn}</span>
+                      </div>
+                      <h2 className="text-base font-bold text-foreground mt-1">{inspectorCourse.title}</h2>
+                    </div>
+
+                    {/* Dynamic Badges Row */}
+                    <div className="flex flex-wrap gap-2 text-xs font-mono">
+                      {/* Schedule Fit Badge */}
+                      <span className={`px-2.5 py-1 rounded-md border font-semibold ${scheduleFitDiagnostics.color}`}>
+                        {scheduleFitDiagnostics.text}
+                      </span>
+
+                      {/* Grading Split */}
+                      <span className="px-2.5 py-1 rounded-md border border-black/10 bg-[#f8f7f3] text-foreground">
+                        [GRADING: {inspectorCourse.courseworkPct}% COURSEWORK / {inspectorCourse.examPct}% EXAM]
+                      </span>
+
+                      {/* Group Work Risk */}
+                      <span className={`px-2.5 py-1 rounded-md border ${
+                        inspectorCourse.groupPct > 20
+                          ? 'border-red-200 bg-red-50 text-red-700 font-semibold'
+                          : 'border-black/10 bg-[#f8f7f3] text-foreground'
+                      }`}>
+                        {inspectorCourse.groupPct > 20
+                          ? `[GROUP-WORK RISK: ${inspectorCourse.groupPct}%]`
+                          : `[GROUP WORK: ${inspectorCourse.groupPct}%]`}
+                      </span>
+
+                      {/* Quota */}
+                      <span className="px-2.5 py-1 rounded-md border border-black/10 bg-[#f8f7f3] text-foreground">
+                        [QUOTA: {inspectorCourse.quotaAvailable} / {inspectorCourse.quotaTotal} SEATS]
+                      </span>
+
+                      {/* Credits */}
+                      <span className="px-2.5 py-1 rounded-md border border-black/10 bg-[#f8f7f3] text-foreground">
+                        [CREDITS: {inspectorCourse.credits.toFixed(1)}]
+                      </span>
+
+                      {/* Exam Date Tag */}
+                      {inspectorCourse.examPct > 0 ? (
+                        <span className="px-2.5 py-1 rounded-md border border-amber-200 bg-amber-50 text-amber-800 font-medium">
+                          [EXAM DATE: UNKNOWN · NOT PUBLISHED]
+                        </span>
+                      ) : (
+                        <span className="px-2.5 py-1 rounded-md border border-green-200 bg-green-50 text-green-800 font-medium">
+                          [NO FINAL EXAM · 100% COURSEWORK]
+                        </span>
+                      )}
+
+                      {/* Next Offering */}
+                      <span className="px-2.5 py-1 rounded-md border border-amber-200 bg-amber-50 text-amber-800 font-medium">
+                        [NEXT OFFERING: SEM A 2027/28 UNKNOWN]
+                      </span>
+                    </div>
+
+                    {/* Course Description */}
+                    <p className="text-xs text-muted-foreground leading-relaxed pt-1">
+                      {courseDescriptions[inspectorCourse.code] || 'Comprehensive foundational principles, computational inquiry, structured project development, and academic assessments.'}
+                    </p>
+
+                    {/* Weekly Workload Hour Distribution (Segmented Meter Bar) */}
+                    <div className="border-t border-black/10 pt-4 space-y-2">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="font-mono text-[10px] uppercase tracking-wider font-bold text-muted-foreground">
+                          Weekly Workload Hour Distribution
+                        </span>
+                        <span className="font-mono text-xs font-bold text-[#6c4cff]">
+                          Total: {workloadMetrics.totalH.toFixed(1)} hrs/wk
+                        </span>
+                      </div>
+
+                      {/* Segmented Meter Bar */}
+                      <div className="w-full h-3 rounded-md overflow-hidden flex bg-[#eeece6]">
+                        <div
+                          style={{ width: `${(workloadMetrics.lecH / workloadMetrics.totalH) * 100}%` }}
+                          className="bg-[#171717]"
+                          title={`Lecture: ${workloadMetrics.lecH} hrs/wk`}
+                        />
+                        <div
+                          style={{ width: `${(workloadMetrics.tutH / workloadMetrics.totalH) * 100}%` }}
+                          className="bg-[#6c4cff]"
+                          title={`Tutorial: ${workloadMetrics.tutH} hr/wk`}
+                        />
+                        {workloadMetrics.labH > 0 && (
+                          <div
+                            style={{ width: `${(workloadMetrics.labH / workloadMetrics.totalH) * 100}%` }}
+                            className="bg-[#0891b2]"
+                            title={`Laboratory: ${workloadMetrics.labH} hrs/wk`}
+                          />
+                        )}
+                        <div
+                          style={{ width: `${(workloadMetrics.projH / workloadMetrics.totalH) * 100}%` }}
+                          className="bg-[#d97706]"
+                          title={`Project / Group: ${workloadMetrics.projH} hrs/wk`}
+                        />
+                        <div
+                          style={{ width: `${(workloadMetrics.prepH / workloadMetrics.totalH) * 100}%` }}
+                          className="bg-[#55b987]"
+                          title={`Prep / Reading: ${workloadMetrics.prepH} hrs/wk`}
+                        />
+                      </div>
+
+                      {/* Readout Legend */}
+                      <p className="font-mono text-[10px] text-muted-foreground pt-1">
+                        Lecture {workloadMetrics.lecH}h · Tutorial {workloadMetrics.tutH}h · Lab {workloadMetrics.labH}h · Project {workloadMetrics.projH}h · Prep {workloadMetrics.prepH}h
+                      </p>
+                    </div>
+
+                    {/* What We Know vs Unknown Provenance Box (Lecture 07 AI Must Remain Silent) */}
+                    <div className="border-t border-black/10 pt-4 space-y-2">
+                      <p className="font-mono text-[10px] uppercase tracking-wider font-bold text-muted-foreground">
+                        What We Know &amp; What Remains Unknown
+                      </p>
+                      <ul className="text-xs space-y-2 text-foreground">
+                        <li className="flex items-center justify-between">
+                          <span>Assessment weights ({inspectorCourse.courseworkPct}% Coursework / {inspectorCourse.examPct}% Exam)</span>
+                          <span className="font-mono text-[9px] px-1.5 py-0.5 rounded bg-[#f8f7f3] border text-muted-foreground">
+                            Sample syllabus
+                          </span>
+                        </li>
+                        <li className="flex items-center justify-between">
+                          <span>Weekly workload estimate ({workloadMetrics.totalH} hrs/wk)</span>
+                          <span className="font-mono text-[9px] px-1.5 py-0.5 rounded bg-[#f8f7f3] border text-muted-foreground">
+                            Sample syllabus
+                          </span>
+                        </li>
+                        <li className="flex items-center justify-between">
+                          <span>Outside placement commitment (16 hrs/wk)</span>
+                          <span className="font-mono text-[9px] px-1.5 py-0.5 rounded bg-[#ece9ff] text-[#34266f] border border-[#d9ccff] font-semibold">
+                            You entered
+                          </span>
+                        </li>
+                        <li className="flex items-center justify-between">
+                          <span>Final examination exact date</span>
+                          <span className="font-mono text-[9px] px-1.5 py-0.5 rounded bg-amber-50 text-amber-800 border border-amber-200 font-semibold">
+                            {inspectorCourse.examPct > 0 ? 'Unknown · Not Published' : 'N/A (0% Exam)'}
+                          </span>
+                        </li>
+                        <li className="flex items-center justify-between">
+                          <span>Whether {inspectorCourse.code} is offered in Sem A 2027/28</span>
+                          <span className="font-mono text-[9px] px-1.5 py-0.5 rounded bg-amber-50 text-amber-800 border border-amber-200 font-semibold">
+                            Unknown
+                          </span>
+                        </li>
+                        <li className="flex items-center justify-between">
+                          <span>Project subgroup weekly meeting times</span>
+                          <span className="font-mono text-[9px] px-1.5 py-0.5 rounded bg-amber-50 text-amber-800 border border-amber-200 font-semibold">
+                            Unknown
+                          </span>
+                        </li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right 6 Columns: 13-Week Deliverable Map, Prerequisite Tree, Blogs & Action */}
+                <div className="lg:col-span-6 space-y-6">
+                  {/* Card 2: 13-Week Semester Deliverable Map vs Outside Commitments */}
+                  <div className="bg-white border border-black/10 rounded-2xl p-6 shadow-sm space-y-3">
+                    <div>
+                      <h3 className="text-xs font-bold text-foreground">
+                        13-Week Semester Deliverable Map vs Outside Commitments
+                      </h3>
+                      <p className="text-[10px] text-muted-foreground mt-0.5">
+                        Visualizes deadline collisions against midterm periods and internship days.
+                      </p>
+                    </div>
+
+                    {/* 13-Week Deliverable Table */}
+                    <div className="overflow-x-auto border border-black/10 rounded-xl">
+                      <table className="w-full text-center border-collapse text-[10px] font-mono">
+                        <thead>
+                          <tr className="bg-[#f8f7f3] border-b border-black/10 text-muted-foreground">
+                            <th className="p-2 text-left font-semibold border-r border-black/10 whitespace-nowrap">Stream</th>
+                            {Array.from({ length: 13 }, (_, i) => i + 1).map(w => (
+                              <th key={w} className="p-1.5 min-w-[34px] border-r border-black/5 last:border-r-0">
+                                W{w}
+                              </th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {/* Row 1: Course Deliverables */}
+                          <tr className="border-b border-black/5">
+                            <td className="p-2 text-left font-bold text-[#171717] bg-[#fdfcf9] border-r border-black/10 whitespace-nowrap">
+                              {inspectorCourse.code} Deliverables
+                            </td>
+                            {Array.from({ length: 13 }, (_, i) => i + 1).map(w => {
+                              let note = '';
+                              let isStress = false;
+                              if (w === 4) note = 'Asg 1';
+                              else if (w === 7) { note = 'Midterm'; isStress = true; }
+                              else if (w === 9) note = 'Asg 2';
+                              else if (w === 11) { note = 'Project'; isStress = true; }
+                              else if (w === 12) { note = 'Due'; isStress = true; }
+
+                              return (
+                                <td
+                                  key={w}
+                                  className={`p-1.5 border-r border-black/5 last:border-r-0 text-[9px] ${
+                                    isStress ? 'bg-[#fee2e2] text-red-800 font-bold' : ''
+                                  }`}
+                                >
+                                  {note}
+                                </td>
+                              );
+                            })}
+                          </tr>
+
+                          {/* Row 2: Placement & Sprints */}
+                          <tr>
+                            <td className="p-2 text-left font-bold text-[#171717] bg-[#fdfcf9] border-r border-black/10 whitespace-nowrap">
+                              Placement &amp; Sprints
+                            </td>
+                            {Array.from({ length: 13 }, (_, i) => i + 1).map(w => {
+                              let note = '';
+                              let isOverlap = false;
+                              if (w === 7) { note = 'Hackathon'; isOverlap = true; }
+                              else if (w >= 10 && w <= 12) { note = 'Interviews'; isOverlap = true; }
+                              else if (w >= 2 && w <= 13) { note = '16h/w'; }
+
+                              return (
+                                <td
+                                  key={w}
+                                  className={`p-1.5 border-r border-black/5 last:border-r-0 text-[9px] ${
+                                    isOverlap ? 'bg-[#ffedd5] text-amber-900 font-bold' : 'text-muted-foreground'
+                                  }`}
+                                >
+                                  {note}
+                                </td>
+                              );
+                            })}
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  {/* Card 3: Prerequisite & Sequential Progression Tree */}
+                  <div className="bg-white border border-black/10 rounded-2xl p-6 shadow-sm space-y-3">
+                    <h3 className="text-xs font-bold text-foreground">
+                      Prerequisite &amp; Sequential Progression Tree
+                    </h3>
+
+                    <div className="flex items-center justify-between gap-2 p-3 bg-[#f8f7f3] rounded-xl border border-black/5 text-xs font-mono">
+                      {/* Left: Prereq Node */}
+                      <div className="p-2 rounded-lg bg-white border border-black/10 text-center flex-1">
+                        <span className="text-[10px] text-muted-foreground block uppercase">Prerequisites</span>
+                        <span className="font-bold text-foreground">
+                          {inspectorCourse.prereqs.length > 0 ? inspectorCourse.prereqs.join(', ') : 'None'}
+                        </span>
+                      </div>
+
+                      <div className="text-muted-foreground font-bold">&rarr;</div>
+
+                      {/* Center: Target Node */}
+                      <div className="p-2.5 rounded-lg bg-[#ece9ff] border border-[#6c4cff] text-center flex-1 shadow-xs">
+                        <span className="text-[10px] text-[#34266f] block uppercase font-bold">Target</span>
+                        <span className="font-bold text-[#171717]">{inspectorCourse.code}</span>
+                      </div>
+
+                      <div className="text-muted-foreground font-bold">&rarr;</div>
+
+                      {/* Right: Next Sequence Node */}
+                      <div className="p-2 rounded-lg bg-white border border-black/10 text-center flex-1">
+                        <span className="text-[10px] text-muted-foreground block uppercase">Next Sequence</span>
+                        <span className="font-bold text-foreground">
+                          {inspectorCourse.category === 'stem' ? 'CS4335 / Major Core' : 'Advanced GE Cluster'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Card 4: Embedded Reviews & Discussion from CityU Student Blogs */}
+                  <div className="bg-white border border-black/10 rounded-2xl p-6 shadow-sm space-y-4">
+                    <div className="flex items-center justify-between border-b pb-3">
+                      <div>
+                        <h3 className="text-xs font-bold text-foreground">
+                          Reviews &amp; Discussion from CityU Student Blogs
+                        </h3>
+                        <p className="text-[10px] text-muted-foreground mt-0.5">
+                          Authentic reviews with semester context. No numerical difficulty score is fabricated.
+                        </p>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => changeTab('blogs')}
+                        className="text-xs font-mono h-7 text-[#6c4cff] hover:underline"
+                      >
+                        Browse All Blogs
+                      </Button>
+                    </div>
+
+                    <div className="space-y-3">
+                      {inspectorMatchingBlogs.map(post => (
+                        <div key={post.id} className="p-3.5 rounded-xl border border-black/10 bg-[#f8f7f3] space-y-2 text-left">
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="font-bold text-[#171717]">&ldquo;{post.title}&rdquo;</span>
+                            <span className="font-mono text-[9px] bg-white border border-black/10 px-1.5 py-0.5 rounded text-muted-foreground">
+                              CityU Blogs
+                            </span>
+                          </div>
+                          <p className="font-mono text-[10px] text-muted-foreground">
+                            Context: <strong className="text-foreground">{post.author}</strong> · {post.authorMeta}
+                          </p>
+                          <p className="text-xs text-muted-foreground leading-relaxed">
+                            {post.summary}
+                          </p>
+                          <button
+                            onClick={() => changeTab('blogs')}
+                            className="text-xs font-mono text-[#6c4cff] font-semibold hover:underline block pt-1"
+                          >
+                            Read {post.author}&rsquo;s Full Post on CityU Blogs &rarr;
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Primary Stage Action Button */}
+                    <div className="pt-2">
+                      <Button
+                        onClick={() => {
+                          handleStageCourse(inspectorCourse.code);
+                          changeTab('rehearsal');
+                        }}
+                        className="w-full bg-[#171717] text-white hover:bg-[#6c4cff] text-xs h-10 font-semibold"
+                      >
+                        Stage {inspectorCourse.code} in Weekly Timetable &rarr;
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+
               </div>
             </div>
           )}
@@ -877,7 +1215,7 @@ export function Dashboard() {
             <div className="max-w-4xl mx-auto space-y-6">
               <div className="border-b border-black/10 pb-5">
                 <p className="font-mono text-xs uppercase tracking-[0.18em] text-[#6c4cff] mb-1">
-                  Community Insights & Peer Feedback
+                  Community Insights &amp; Peer Feedback
                 </p>
                 <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
                   CityU Course Experience Blogs
@@ -993,7 +1331,7 @@ export function Dashboard() {
                   onChange={(e) => setHandoffStep1(e.target.checked)}
                   className="mt-0.5 rounded"
                 />
-                <span>I have verified open quota on CityU AIMS for candidate course.</span>
+                <span>1. Verified live seat availability on AIMS for Add CRN ({handoff.addCRN || 'N/A'}).</span>
               </label>
 
               <label className="flex items-start gap-2.5 text-xs cursor-pointer">
@@ -1003,7 +1341,7 @@ export function Dashboard() {
                   onChange={(e) => setHandoffStep2(e.target.checked)}
                   className="mt-0.5 rounded"
                 />
-                <span>I understand that AIMS does not support atomic swap and requires manual drop-then-add.</span>
+                <span>2. Executed drop for {swapOutCourse?.code || 'course'} on AIMS using Drop CRN ({swapOutCourse?.crn || 'N/A'}).</span>
               </label>
 
               <label className="flex items-start gap-2.5 text-xs cursor-pointer">
@@ -1013,7 +1351,7 @@ export function Dashboard() {
                   onChange={(e) => setHandoffStep3(e.target.checked)}
                   className="mt-0.5 rounded"
                 />
-                <span>I confirm that my total credits will remain at or above the 12.0 credit minimum.</span>
+                <span>3. Executed add for {stagedCourse?.code || 'course'} on AIMS using Add CRN ({stagedCourse?.crn || 'N/A'}).</span>
               </label>
             </div>
 
