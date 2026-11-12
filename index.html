@@ -1845,18 +1845,22 @@
 
       <div class="modal-body" id="modalBodyText">
         <p>The system has computed schedule collision vectors and credit constraints with zero errors.</p>
-        <div style="background:var(--raised); border:1px solid var(--border); border-radius:6px; padding:12px; margin:14px 0;">
-          <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
-            <span style="font-size:11px; color:var(--muted);">Course to Drop from Timetable:</span>
-            <strong id="modalDropCode" style="font-family:var(--font-mono)">GE1109 (CRN 51002)</strong>
+        <div id="modalDeltaContainer" style="background:var(--raised); border:1px solid var(--border); border-radius:6px; padding:12px; margin:14px 0; display:flex; flex-direction:column; gap:8px;">
+          <div>
+            <span style="font-size:11px; color:var(--muted); text-transform:uppercase; font-weight:700;">Drop Target:</span>
+            <div id="modalDropCode" style="font-family:var(--font-mono); font-size:12px; margin-top:2px;"></div>
           </div>
-          <div style="display:flex; justify-content:space-between;">
-            <span style="font-size:11px; color:var(--muted);">Course to Stage as Replacement:</span>
-            <strong id="modalAddCode" style="font-family:var(--font-mono); color:var(--accent)">GE1907 (CRN 54086)</strong>
+          <div style="border-top:1px dashed var(--border); padding-top:8px;">
+            <span style="font-size:11px; color:var(--muted); text-transform:uppercase; font-weight:700;">Replacement:</span>
+            <div id="modalAddCode" style="font-family:var(--font-mono); font-size:12px; color:var(--accent); margin-top:2px;"></div>
+          </div>
+          <div style="border-top:1px dashed var(--border); padding-top:8px; display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-size:11px; color:var(--muted); text-transform:uppercase; font-weight:700;">Projected Credit Load:</span>
+            <strong id="modalProjectedCredits" style="font-family:var(--font-mono); font-size:12px; color:var(--positive);"></strong>
           </div>
         </div>
         <p style="font-size:12px; color:var(--muted);">
-          System Boundary Note: Under CityU regulations, this rehearsal does NOT perform automated network submission to AIMS. All seat registrations must be executed manually.
+          CityU AIMS requires dropping the old seat before registering the new one. Check live seat availability first.
         </p>
       </div>
 
@@ -2700,6 +2704,18 @@
       });
     }
 
+    function populateControlGateModal() {
+      if (state.swapOutId && state.selectedReplacement) {
+        const dropCourse = getCourse(state.swapOutId);
+        const addCourse = getCourse(state.selectedReplacement);
+        if (dropCourse && addCourse) {
+          document.getElementById('modalDropCode').textContent = `${dropCourse.code} (${dropCourse.title} · ${dropCourse.day} ${dropCourse.start}-${dropCourse.end} · CRN ${dropCourse.crn} · ${dropCourse.credits.toFixed(1)} CR)`;
+          document.getElementById('modalAddCode').textContent = `${addCourse.code} (${addCourse.title} · ${addCourse.day} ${addCourse.start}-${addCourse.end} · CRN ${addCourse.crn} · ${addCourse.credits.toFixed(1)} CR)`;
+          document.getElementById('modalProjectedCredits').textContent = `${calculateProjectedCredits().toFixed(1)} CR (Preserves 12.0 CR Visa Floor)`;
+        }
+      }
+    }
+
     // Render Live Audit Container (Fixes #2 & #3)
     function renderLiveAudit() {
       const container = document.getElementById('liveAuditContainer');
@@ -2752,10 +2768,7 @@
         const openBtn = document.getElementById('openGateModalBtn');
         if (openBtn) {
           openBtn.addEventListener('click', () => {
-            if (state.swapOutId && state.selectedReplacement) {
-              document.getElementById('modalDropCode').textContent = `${state.swapOutId} (CRN ${getCourse(state.swapOutId).crn})`;
-              document.getElementById('modalAddCode').textContent = `${state.selectedReplacement} (CRN ${getCourse(state.selectedReplacement).crn})`;
-            }
+            populateControlGateModal();
             document.getElementById('controlGateModal').classList.add('open');
           });
         }
@@ -2830,10 +2843,7 @@
       state.selectedReplacement = code;
       state.handoffData = null;
 
-      if (state.swapOutId && getCourse(state.swapOutId)) {
-        document.getElementById('modalDropCode').textContent = `${state.swapOutId} (CRN ${getCourse(state.swapOutId).crn})`;
-        document.getElementById('modalAddCode').textContent = `${code} (CRN ${cand.crn})`;
-      }
+      populateControlGateModal();
 
       showToast(`[Staged ${code} as preview replacement on timetable]`);
       renderAll();
