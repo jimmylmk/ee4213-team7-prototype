@@ -3,7 +3,7 @@
 **Project:** Unified Course Planning & Safe-Swap Rehearsal Sandbox (CityU EE4213 Team 7)  
 **Author:** Lam Kin (Jimmy), Lead Prototype Developer  
 **Date:** November 12, 2026  
-**Status:** Approved for Implementation  
+**Status:** Approved for Implementation (Post-Review Revision)  
 **Target Codebase:** `index.html` & `google drive/01_Master_Prototype_&_Code_[Jimmy]/Master_Build_Code/index.html`
 
 ---
@@ -26,7 +26,8 @@ The primary goal is to provide a dedicated, welcoming entry experience for exter
 
 ## 2. Top-Level Page Architecture & View-State Machine
 
-In `index.html`, the `<body>` hosts two top-level sibling containers:
+### 2.1 DOM Hierarchy (Critical Fix #1)
+In `index.html`, the `<body>` hosts two top-level sibling containers. Crucially, `<header class="app-header">` and `<div class="app-shell">` are both nested inside `<div id="dashboardView" class="app-layout">` so the dashboard header and controls do not leak onto the landing page:
 
 ```html
 <body>
@@ -37,33 +38,86 @@ In `index.html`, the `<body>` hosts two top-level sibling containers:
 
   <!-- 2. EXISTING REHEARSAL DASHBOARD CONTAINER (Initially hidden) -->
   <div id="dashboardView" class="app-layout" style="display: none;">
-    <!-- Left Sidebar (.app-sidebar) + Main Viewport (.app-main: Rehearsal, Inspector, Blogs) -->
+    <!-- Shared Dashboard Header (.app-header) -->
+    <header class="app-header">...</header>
+
+    <!-- Shell (.app-shell) holding Sidebar and Main Views -->
+    <div class="app-shell">
+      <aside class="app-sidebar">...</aside>
+      <main class="app-main">
+        <section id="rehearsalView" class="view-container">...</section>
+        <section id="inspectorView" class="view-container">...</section>
+        <section id="blogsView" class="view-container">...</section>
+      </main>
+    </div>
   </div>
 
-  <!-- Global Overlays & Modals -->
+  <!-- Global Overlays & Modals (Shared across views) -->
   <div id="toastNotification" class="toast-container" role="status" aria-live="polite"></div>
   <div class="modal-overlay" id="controlGateModal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">...</div>
 </body>
 ```
 
-### View Transition Methods
+### 2.2 View Transition & Subview Lifecycle Engine (Critical Fix #2)
+To ensure that deep-links into specific dashboard tabs (such as the Course Inspector or CityU Blogs) properly initialize all dynamic subview data, `showDashboard(targetSubView)` includes full lifecycle initializers:
+
 ```javascript
-function showLandingPage() {
+function showLandingPage(updateHash = true) {
   document.getElementById('landingView').style.display = 'block';
   document.getElementById('dashboardView').style.display = 'none';
+  if (updateHash) {
+    location.hash = '#landing';
+  }
+  updateLandingPageCTA();
   window.scrollTo({ top: 0, behavior: 'instant' });
 }
 
-function showDashboard(targetSubView = 'rehearsalView') {
+function showDashboard(targetSubView = 'rehearsalView', updateHash = true) {
   document.getElementById('landingView').style.display = 'none';
   document.getElementById('dashboardView').style.display = 'flex';
   switchMainView(targetSubView);
   renderAll();
+
+  // Subview-Specific Lifecycle Initializers (Critical Fix #2)
+  if (targetSubView === 'inspectorView') {
+    const code = state.swapOutId || state.enrolled[0] || 'CS3334';
+    const selectEl = document.getElementById('inspectorCourseSelect');
+    if (selectEl) selectEl.value = code;
+    renderInspectorCourse(code);
+  } else if (targetSubView === 'blogsView') {
+    state.activeBlogPostId = null;
+    renderBlogs();
+  }
+
+  if (updateHash) {
+    location.hash = '#' + targetSubView.replace('View', '');
+  }
   window.scrollTo({ top: 0, behavior: 'instant' });
 }
 ```
 
-### Sidebar Return Navigation
+### 2.3 Safe Hash Routing for Browser History (Important Fix #3)
+To avoid `file://` security exceptions while enabling standard browser Back/Forward navigation, routing is managed via lightweight URL hash listening:
+
+```javascript
+function handleHashRoute() {
+  const hash = window.location.hash.toLowerCase();
+  if (hash === '#rehearsal') {
+    showDashboard('rehearsalView', false);
+  } else if (hash === '#inspector') {
+    showDashboard('inspectorView', false);
+  } else if (hash === '#blogs') {
+    showDashboard('blogsView', false);
+  } else {
+    // Default to landing page on initial visit or #landing
+    showLandingPage(false);
+  }
+}
+
+window.addEventListener('hashchange', handleHashRoute);
+```
+
+### 2.4 Persistent Sidebar Return Navigation
 At the very top of `<aside class="app-sidebar">`, above the view tabs:
 ```html
 <div class="sidebar-home-link" style="padding: 12px 14px; border-bottom: 1px solid var(--border);">
@@ -80,19 +134,25 @@ Clicking `#sidebarReturnHomeBtn` invokes `showLandingPage()`, preserving any act
 
 ### 3.1 Top Navigation Bar
 - **Branding:** `CityU EE4213 Team 7 · Course Planning Sandbox`
-- **Anchor Links:** `[Overview]`, `[Key Capabilities]`, `[Student Persona]`, `[3-Step Walkthrough]`
+- **Anchor Links (Important Fix #5):**
+  - `<a href="#overviewSection">Overview</a>`
+  - `<a href="#capabilitiesSection">Key Capabilities</a>`
+  - `<a href="#personaSection">Student Persona</a>`
+  - `<a href="#walkthroughSection">3-Step Walkthrough</a>`
 - **Action Button:** `[Launch Sandbox Workspace &rarr;]` (class `btn btn-primary`) invoking `showDashboard('rehearsalView')`.
 
-### 3.2 Hero Section
+### 3.2 Hero Section (`id="overviewSection"`)
 - **Kicker Tag:** `[STUDENT-CENTERED HCI PROTOTYPE V2.1 · CITYU AY2026/27]`
 - **Headline:** `Unified Course Planning & Safe-Swap Rehearsal Sandbox`
 - **Lead Paragraph:**
   `Eliminate the fear of dropping a course on CityU AIMS before securing a replacement. Safe-Swap Sandbox is a client-side rehearsal environment designed to protect your 12.0 credit full-time visa floor, detect timetable clashes in advance, and balance academic workloads against outside placement commitments.`
-- **Dual CTA Buttons:**
-  - Primary CTA: `Launch Rehearsal Sandbox &rarr;` (calls `showDashboard('rehearsalView')`)
-  - Secondary CTA: `Course Workload Diagnostics` (calls `showDashboard('inspectorView')`)
+- **Dual CTA Buttons & In-Flight State Indicator (Minor Fix #8):**
+  - Primary Hero CTA (`#heroLaunchBtn`):
+    - Default: `Launch Rehearsal Sandbox &rarr;`
+    - When simulation active (`state.swapOutId !== null || state.selectedReplacement !== null`): `Resume Active Rehearsal &rarr; [Rehearsal In-Progress]`
+  - Secondary Hero CTA (`#heroInspectBtn`): `Course Workload Diagnostics` (calls `showDashboard('inspectorView')`)
 
-### 3.3 Core Capabilities Grid (3 Highlight Cards)
+### 3.3 Core Capabilities Grid (`id="capabilitiesSection"`, 3 Highlight Cards)
 1. **Card 1: 3-State Safe-Swap Rehearsal (N2 & N3 / S5 & S6)**
    - Header: `[NON-ATOMIC AIMS REGISTRATION PROTECTION]`
    - Description: `Preview course trades across Solid (Enrolled), Muted (Marked for Drop), and Ghost (Staged Preview) states before modifying actual AIMS records. Automatic checks enforce the 12.0 credit visa floor and prevent timetable overlaps.`
@@ -106,14 +166,14 @@ Clicking `#sidebarReturnHomeBtn` invokes `showLandingPage()`, preserving any act
    - Description: `Read 6 verified student blog reviews focusing on non-local adjustment, GE course selections, and placement balancing. Click any course tag inside an article to inspect its prerequisites instantly.`
    - Action Button: `Read Student Blogs &rarr;` (`showDashboard('blogsView')`)
 
-### 3.4 Active Testing Persona Showcase
+### 3.4 Active Testing Persona Showcase (`id="personaSection"`)
 - **Persona Name:** `Marcus Li (Synthesized Primary Persona: Subgroups A/C/D)`
 - **Demographics:** `Year 1 STEM Undergraduate · Undeclared Major · Student ID: 55489201`
 - **Academic Baseline:** `12.0 Credits Enrolled (EE2000, CS1302, GE1501, GE1109)`
 - **Core Challenge:** `Marcus needs to swap his Friday afternoon elective (GE1109) for a morning course while protecting his 12.0 credit full-time visa floor and preventing clashes with his Thursday/Monday Tech Placement.`
-- **Action Button:** `Simulate Marcus Li's Timetable &rarr;` (`showDashboard('rehearsalView')`)
+- **Action Button (Minor Fix #7):** `Enter Rehearsal with Marcus's Baseline &rarr;` (`showDashboard('rehearsalView')`)
 
-### 3.5 3-Step Walkthrough Section
+### 3.5 3-Step Walkthrough Section (`id="walkthroughSection"`)
 - **Step 1: Select Drop Target** &mdash; Mark an enrolled course (`GE1109`) to swap out without releasing the seat.
 - **Step 2: Preview Replacement** &mdash; Stage a candidate course (`GE1907`) onto the timetable to evaluate clashes and credit balance.
 - **Step 3: Supervised AIMS Handoff** &mdash; Review the Human Control Gate delta, check the 3-step manual verification list, and copy verified CRNs to AIMS.
@@ -124,11 +184,20 @@ Clicking `#sidebarReturnHomeBtn` invokes `showLandingPage()`, preserving any act
 
 ---
 
-## 4. Visual Design & CSS Tokens
+## 4. Visual Design & Responsive CSS Tokens (Important Fix #4)
 
-The landing page utilizes established design tokens from `index.html`:
+The landing page utilizes established design tokens from `index.html` and introduces responsive stacking:
 
 ```css
+/* Dashboard Wrapper Layout (Critical Fix #1) */
+.app-layout {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  width: 100%;
+}
+
+/* Landing Page Presentation Tokens */
 .landing-page-wrapper {
   min-height: 100vh;
   background: var(--page);
@@ -165,7 +234,7 @@ The landing page utilizes established design tokens from `index.html`:
 }
 
 .landing-hero p {
-  font-size: 16px;
+  font-size: 15px;
   line-height: 1.6;
   color: #475569;
   max-width: 780px;
@@ -210,6 +279,36 @@ The landing page utilizes established design tokens from `index.html`:
   margin: 0 auto 64px;
   padding: 0 24px;
 }
+
+/* Responsive Breakpoints (Important Fix #4) */
+@media (max-width: 900px) {
+  .landing-grid-3 {
+    grid-template-columns: 1fr;
+  }
+  .landing-persona-banner {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .landing-nav {
+    padding: 12px 16px;
+  }
+}
+```
+
+### 4.1 Keyboard Accelerator Guard (Minor Fix #6)
+In the global keydown handler for `/`, ensure the search focus only executes when `#dashboardView` is actively visible, or switches into `#rehearsalView` if pressed on the landing page:
+```javascript
+if (e.key === '/' && e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
+  e.preventDefault();
+  if (document.getElementById('dashboardView').style.display === 'none') {
+    showDashboard('rehearsalView');
+  }
+  const searchInput = document.getElementById('courseSearchInput');
+  if (searchInput) {
+    searchInput.focus();
+    searchInput.select();
+  }
+}
 ```
 
 ---
@@ -218,9 +317,10 @@ The landing page utilizes established design tokens from `index.html`:
 
 1. **Automated Test Suite (`tests/task9-landing-page.test.mjs`):**
    - Verify `#landingView` is rendered in DOM and displayed on page load.
-   - Verify `#dashboardView` is initially hidden (`display: none`).
+   - Verify `#dashboardView` contains `.app-header` and `.app-shell` and is initially hidden (`display: none`).
    - Verify all primary and secondary CTA buttons invoke `showDashboard()`.
    - Verify `#sidebarReturnHomeBtn` exists and invokes `showLandingPage()`.
+   - Verify hash routing switches views (`#landing`, `#rehearsal`, `#inspector`, `#blogs`).
    - Verify all 23 prior unit tests in `tests/*.test.mjs` pass with 0 regressions.
 2. **Zero-Emoji Enforcement:**
    - Scan for regex `[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]` across all files (`0 found`).
