@@ -1,0 +1,16 @@
+{
+  "name": "ee4213-team7-prototype",
+  "version": "1.0.0",
+  "description": "CityU EE4213 Team 7 - Unified Course Planning and Safe-Swap Rehearsal Sandbox",
+  "main": "server.mjs",
+  "type": "module",
+  "scripts": {
+    "start": "node server.mjs",
+    "dev": "node server.mjs",
+    "serve": "node server.mjs",
+    "test": "node --test tests/*.test.mjs"
+  },
+  "keywords": [],
+  "author": "EE4213 Team 7",
+  "license": "ISC"
+}
