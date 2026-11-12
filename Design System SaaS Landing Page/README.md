@@ -1,11 +1,17 @@
+# CityU EE4213 Team 7: SafeSwap Rehearsal Sandbox (React + Vite)
 
-  # Design System SaaS Landing Page
+Integrated modern SaaS Landing Page and Dashboard for CityU EE4213 Human-Computer Interaction Team #7.
 
-  This is a code bundle for Design System SaaS Landing Page. The original project is available at https://www.figma.com/design/D5HhsOuWxiKh8GvEA6BcOs/Design-System-SaaS-Landing-Page.
+## Running the Code
 
-  ## Running the code
+Dependencies are already installed. You can start the dev server directly:
 
-  Run `npm i` to install the dependencies.
+```bash
+npm run dev
+```
 
-  Run `npm run dev` to start the development server.
-  
+To build for production:
+
+```bash
+npm run build
+```
