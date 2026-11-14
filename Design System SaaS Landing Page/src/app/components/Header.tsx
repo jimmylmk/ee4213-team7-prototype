@@ -32,7 +32,7 @@ export function Header() {
           <Link to="/" className="flex items-center space-x-2 sm:space-x-3">
             <BrandMark />
             <div className="flex flex-col">
-              <span className="whitespace-nowrap font-semibold text-sm leading-tight tracking-tight">CityUHK CampuSync</span>
+              <span className="whitespace-nowrap font-semibold text-sm leading-tight tracking-tight">CityU <span className="text-violet-600">CampuSync</span></span>
               <span className="font-mono text-[10px] text-muted-foreground uppercase tracking-wider">CityU EE4213</span>
             </div>
           </Link>

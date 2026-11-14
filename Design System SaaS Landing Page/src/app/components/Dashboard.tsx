@@ -991,7 +991,7 @@ export function Dashboard() {
               </button>
             )}
             <BrandMark />
-            <span className="font-semibold text-sm tracking-tight">CityUHK CampuSync</span>
+            <span className="font-semibold text-sm tracking-tight">CityU <span className="text-violet-600">CampuSync</span></span>
           </div>
 
           {/* Segmented view switcher */}
@@ -1047,7 +1047,7 @@ export function Dashboard() {
                 className="w-full max-w-[min(100vw,28rem)] gap-0 overflow-y-auto border-[#E4E1DA] bg-[#F7F5F0] sm:max-w-md data-[state=open]:duration-200 data-[state=closed]:duration-150 motion-reduce:!animate-none motion-reduce:!transition-none"
               >
                 <SheetHeader className="border-b border-[#E4E1DA] px-6 pb-5 pt-8 pr-12 text-left">
-                  <SheetTitle className="text-xl font-bold tracking-tight text-[#18181B]">How CityUHK CampuSync works</SheetTitle>
+                  <SheetTitle className="text-xl font-bold tracking-tight text-[#18181B]">How CityU CampuSync works</SheetTitle>
                   <SheetDescription className="text-sm leading-relaxed text-[#52525B]">
                     A quick guide to exploring courses and rehearsing a schedule.
                   </SheetDescription>
@@ -1056,7 +1056,7 @@ export function Dashboard() {
                   <div className="rounded-xl border border-[#d1e5a0] bg-[#eff8d7] p-4 text-[#18181B]">
                     <p className="text-sm font-semibold">This is a simulation</p>
                     <p className="mt-1 text-xs leading-relaxed">
-                      CityUHK CampuSync does not change your AIMS registration. Check live course information and register separately in AIMS.
+                      CityU CampuSync does not change your AIMS registration. Check live course information and register separately in AIMS.
                     </p>
                     <p className="mt-2 text-xs leading-relaxed">
                       Your draft, personal time and blog contributions are temporary and are lost when you reload or leave the app.

@@ -17,7 +17,7 @@ export function Footer() {
             <div className="flex items-center space-x-3 mb-3">
               <BrandMark />
               <div>
-                <div className="font-semibold text-sm">CityUHK CampuSync</div>
+                <div className="font-semibold text-sm">CityU <span className="text-violet-600">CampuSync</span></div>
                 <div className="font-mono text-[10px] text-muted-foreground uppercase">CityU EE4213 Team #7</div>
               </div>
             </div>
