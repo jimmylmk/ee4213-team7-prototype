@@ -2,12 +2,16 @@ import { useEffect, useRef } from "react";
 import { ArrowLeft, ArrowRight, ExternalLink, FileText, X } from "lucide-react";
 import { Course } from "../data/courseData";
 import { Button } from "./ui/button";
+import { m } from "motion/react";
+import { AnimatedOverlay } from "./AnimatedOverlay";
+import { usePrefersReducedMotion } from "../utils/motion";
 
 interface SyllabusDrawerProps {
   course: Course;
   open: boolean;
   isEnrolled: boolean;
   isStaged: boolean;
+  stageBlockReason?: string | null;
   onClose: () => void;
   onSelectCourse?: (code: string) => void;
   onStage: (code: string) => void;
@@ -47,10 +51,12 @@ export function SyllabusDrawer({
   open,
   isEnrolled,
   isStaged,
+  stageBlockReason,
   onClose,
   onStage,
 }: SyllabusDrawerProps) {
   const panelRef = useRef<HTMLDivElement>(null);
+  const reducedMotion = usePrefersReducedMotion();
 
   useEffect(() => {
     if (!open) return;
@@ -65,9 +71,7 @@ export function SyllabusDrawer({
     return () => window.removeEventListener('keydown', onKey);
   }, [open, onClose]);
 
-  if (!open) return null;
-
-  const stageDisabled = isEnrolled || isStaged;
+  const stageDisabled = isEnrolled || isStaged || Boolean(stageBlockReason);
   const stageLabel = isEnrolled
     ? 'Currently Enrolled'
     : isStaged
@@ -75,17 +79,22 @@ export function SyllabusDrawer({
       : `Stage ${course.code} in Timetable`;
 
   return (
-    <div
+    <AnimatedOverlay
+      open={open}
       className="fixed inset-0 z-50 flex justify-end bg-black/50 backdrop-blur-xs"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div
+      <m.div
         ref={panelRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="syllabus-drawer-title"
         tabIndex={-1}
-        className="flex h-full w-full max-w-3xl flex-col bg-white shadow-2xl outline-none animate-in slide-in-from-right duration-200"
+        className="flex h-full w-full max-w-3xl flex-col bg-white shadow-2xl outline-none"
+        initial={{ x: reducedMotion ? 0 : "100%" }}
+        animate={{ x: 0 }}
+        exit={{ x: reducedMotion ? 0 : "100%" }}
+        transition={{ duration: reducedMotion ? 0 : 0.18, ease: "easeOut" }}
       >
         <header className="flex items-start justify-between gap-4 border-b border-black/10 px-5 py-4">
           <div className="min-w-0">
@@ -148,21 +157,25 @@ export function SyllabusDrawer({
           )}
         </div>
 
-        <footer className="sticky bottom-0 flex items-center justify-between gap-3 border-t border-black/10 bg-white px-5 py-3">
-          <Button variant="outline" size="sm" onClick={onClose} className="text-xs">
-            Close
-          </Button>
-          <Button
-            size="sm"
-            disabled={stageDisabled}
-            onClick={() => onStage(course.code)}
-            className="bg-[#171717] text-xs text-white hover:bg-[#6c4cff]"
-          >
-            {stageLabel}
-            {!stageDisabled && <ArrowRight className="ml-1.5 h-3.5 w-3.5" />}
-          </Button>
+        <footer className="sticky bottom-0 border-t border-black/10 bg-white px-5 py-3">
+          {stageBlockReason && <p id="syllabus-credit-limit" className="mb-2 text-xs font-medium text-red-600">{stageBlockReason}</p>}
+          <div className="flex items-center justify-between gap-3">
+            <Button variant="outline" size="sm" onClick={onClose} className="text-xs">
+              Close
+            </Button>
+            <Button
+              size="sm"
+              disabled={stageDisabled}
+              aria-describedby={stageBlockReason ? 'syllabus-credit-limit' : undefined}
+              onClick={() => onStage(course.code)}
+              className="bg-[#171717] text-xs text-white hover:bg-[#6c4cff]"
+            >
+              {stageLabel}
+              {!stageDisabled && <ArrowRight className="ml-1.5 h-3.5 w-3.5" />}
+            </Button>
+          </div>
         </footer>
-      </div>
-    </div>
+      </m.div>
+    </AnimatedOverlay>
   );
 }

@@ -418,6 +418,94 @@ export const blogPosts: BlogPost[] = [
     ],
     tags: ['stem', 'workload'],
     courseCode: 'MA2001'
+  },
+  {
+    id: 'post-9',
+    title: 'Planning a week around logic circuit labs',
+    subtitle: 'A sample reflection on balancing lectures, tutorials and lab time.',
+    author: 'Sample student 1',
+    initials: 'S1',
+    date: 'November 1, 2026',
+    verificationStatus: 'pending',
+    readTime: '2 min read',
+    helpfulCount: 0,
+    commentCount: 0,
+    authorMeta: 'Example scenario · Sem A 2026/27 · Year 2 CDE · ~8h/wk',
+    aboutAuthor: 'A fictional student profile created to illustrate the prototype.',
+    summary: 'This example considers how a longer lab session can affect the rest of a weekly schedule.',
+    body: [
+      'In this example, a student looks at EE2000 lecture, tutorial and lab times together before choosing a section. A lab can take up a larger part of the day than the lecture alone suggests.',
+      'Checking the full timetable alongside other commitments can reveal whether there is enough time for preparation and travel.'
+    ],
+    comments: [],
+    tags: ['stem', 'workload'],
+    courseCode: 'EE2000'
+  },
+  {
+    id: 'post-10',
+    title: 'Making room for a Saturday GE',
+    subtitle: 'A sample scenario about choosing between study time and a weekend class.',
+    author: 'Sample student 2',
+    initials: 'S2',
+    date: 'October 30, 2026',
+    verificationStatus: 'pending',
+    readTime: '2 min read',
+    helpfulCount: 0,
+    commentCount: 0,
+    authorMeta: 'Example scenario · Sem A 2026/27 · Year 2 · Weekend commitments · ~6h/wk',
+    aboutAuthor: 'A fictional student profile created to illustrate the prototype.',
+    summary: 'A Saturday course may leave weekdays freer while competing with weekend plans.',
+    body: [
+      'This example explores GE2312 as a Saturday option. The timetable shows its meeting alongside a student’s other activities rather than assuming the weekend is automatically free.',
+      'The best choice depends on personal commitments and the current official course information.'
+    ],
+    comments: [],
+    tags: ['ge', 'workload'],
+    courseCode: 'GE2312'
+  },
+  {
+    id: 'post-11',
+    title: 'Checking the path to computer networks',
+    subtitle: 'A sample reflection on planning prerequisites before staging.',
+    author: 'Sample student 3',
+    initials: 'S3',
+    date: 'October 28, 2026',
+    verificationStatus: 'pending',
+    readTime: '2 min read',
+    helpfulCount: 0,
+    commentCount: 0,
+    authorMeta: 'Example scenario · Sem A 2026/27 · Year 3 CDE · ~7h/wk',
+    aboutAuthor: 'A fictional student profile created to illustrate the prototype.',
+    summary: 'The prerequisite chain matters when planning CS3201 alongside other core courses.',
+    body: [
+      'In this example, a student uses Course Inspector to check the prerequisite listed for CS3201 before adding it to a draft timetable.',
+      'The prototype can highlight a missing prerequisite, but the student should confirm eligibility with official university information.'
+    ],
+    comments: [],
+    tags: ['stem', 'transfer'],
+    courseCode: 'CS3201'
+  },
+  {
+    id: 'post-12',
+    title: 'Balancing group work with personal time',
+    subtitle: 'A sample approach to planning a coursework-heavy GE.',
+    author: 'Sample student 4',
+    initials: 'S4',
+    date: 'October 25, 2026',
+    verificationStatus: 'pending',
+    readTime: '2 min read',
+    helpfulCount: 0,
+    commentCount: 0,
+    authorMeta: 'Example scenario · Sem A 2026/27 · Year 2 · Part-time work · ~5h/wk',
+    aboutAuthor: 'A fictional student profile created to illustrate the prototype.',
+    summary: 'A coursework-heavy subject can still require time outside the scheduled meeting.',
+    body: [
+      'This sample reflection considers GE2305 alongside a part-time shift. A timetable can show the scheduled class, but group meetings may need extra coordination.',
+      'Setting personal time in the rehearsal view makes it easier to notice overlaps and decide which trade-offs need attention.'
+    ],
+    comments: [],
+    tags: ['ge', 'workload'],
+    courseCode: 'GE2305'
   }
 ];
 

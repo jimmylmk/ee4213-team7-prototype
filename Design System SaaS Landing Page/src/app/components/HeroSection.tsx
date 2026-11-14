@@ -12,7 +12,8 @@ export function HeroSection() {
     if (!scene) return;
 
     const cards = scene.querySelectorAll('.floating-card');
-    let frameId: number;
+    let frameId: number | undefined;
+    const motionPreference = window.matchMedia('(prefers-reduced-motion: reduce)');
     
     const animateCards = () => {
       cards.forEach((card, index) => {
@@ -35,8 +36,21 @@ export function HeroSection() {
       frameId = requestAnimationFrame(animateCards);
     };
     
-    frameId = requestAnimationFrame(animateCards);
-    return () => cancelAnimationFrame(frameId);
+    const syncMotion = () => {
+      if (frameId !== undefined) cancelAnimationFrame(frameId);
+      if (motionPreference.matches) {
+        cards.forEach(card => { (card as HTMLElement).style.transform = ''; });
+      } else {
+        frameId = requestAnimationFrame(animateCards);
+      }
+    };
+
+    syncMotion();
+    motionPreference.addEventListener('change', syncMotion);
+    return () => {
+      if (frameId !== undefined) cancelAnimationFrame(frameId);
+      motionPreference.removeEventListener('change', syncMotion);
+    };
   }, []);
 
   return (
@@ -117,7 +131,7 @@ export function HeroSection() {
               {[...Array(15)].map((_, i) => (
                 <div
                   key={i}
-                  className="absolute w-1.5 h-1.5 bg-[#6c4cff]/20 rounded-full animate-pulse"
+                  className="absolute w-1.5 h-1.5 bg-[#6c4cff]/20 rounded-full motion-safe:animate-pulse"
                   style={{
                     left: `${(i * 7 + 10) % 90}%`,
                     top: `${(i * 11 + 15) % 80}%`,

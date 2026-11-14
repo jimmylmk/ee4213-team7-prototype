@@ -64,10 +64,10 @@ export function TestimonialsSection() {
                     Target User Design Goal
                   </div>
                   <p className="text-muted-foreground">
-                    Students hesitate to modify schedules on AIMS because dropping a 3-credit course momentarily drops their load to 9.0 credits, violating full-time minimum load. The SafeSwap sandbox provides a risk-free rehearsal environment to stage, verify, and resolve conflicts before committing changes.
+                    Students hesitate to modify schedules on AIMS because dropping a 3-credit course momentarily drops their load to 9.0 credits, violating full-time minimum load. CityUHK CampuSync provides a risk-free rehearsal environment to stage, verify, and resolve conflicts before committing changes.
                   </p>
                   <p className="font-mono text-[10px] text-muted-foreground pt-1">
-                    — CityU EE4213 SafeSwap Problem Statement
+                    — CityU EE4213 CityUHK CampuSync Problem Statement
                   </p>
                 </div>
               </div>
