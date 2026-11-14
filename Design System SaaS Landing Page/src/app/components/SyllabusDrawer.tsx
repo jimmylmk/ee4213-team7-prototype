@@ -118,7 +118,7 @@ export function SyllabusDrawer({
               <div className="flex flex-wrap items-center justify-between gap-2 border-b border-black/10 bg-[#f8f7f3] px-5 py-2 text-xs">
                 <span className="flex items-center gap-2 font-medium">
                   <FileText className="h-3.5 w-3.5 text-[#6c4cff]" aria-hidden="true" />
-                  {course.syllabusYear === '2025/26' ? '2025/26 Official CityU Syllabus · Latest Active Catalog Edition (Unchanged for 2026/27)' : '2026/27 Official CityU Course Syllabus · Revised for Current Intake'} · Offline Archived PDF
+                  Official CityU syllabus · {course.syllabusYear || '2026/27'} effective academic year · Offline archived PDF
                 </span>
                 <a
                   href={course.syllabusPdf}
