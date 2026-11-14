@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Button } from "./ui/button";
 import { Menu, X } from "lucide-react";
 import { Link } from "react-router";
+import { scrollIntoViewWithMotion } from "../utils/motion";
 
 export function BrandMark({ inverse = false }: { inverse?: boolean }) {
   return (
@@ -21,21 +22,21 @@ export function Header() {
     e.preventDefault();
     setMobileMenuOpen(false);
     const el = document.getElementById(id);
-    if (el) el.scrollIntoView({ behavior: "smooth" });
+    if (el) scrollIntoViewWithMotion(el);
   };
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container mx-auto flex h-16 items-center justify-between px-4">
-        <div className="flex items-center space-x-8">
-          <Link to="/" className="flex items-center space-x-3">
+        <div className="flex items-center lg:space-x-8">
+          <Link to="/" className="flex items-center space-x-2 sm:space-x-3">
             <BrandMark />
             <div className="flex flex-col">
-              <span className="font-semibold text-sm leading-tight tracking-tight">SafeSwap</span>
+              <span className="whitespace-nowrap font-semibold text-sm leading-tight tracking-tight">CityU <span className="text-violet-600">CampuSync</span></span>
               <span className="font-mono text-[10px] text-muted-foreground uppercase tracking-wider">CityU EE4213</span>
             </div>
           </Link>
-          <nav className="hidden md:flex items-center space-x-6 text-sm">
+          <nav className="hidden lg:flex items-center space-x-6 text-sm">
             <a href="#overview" onClick={scrollTo("overview")} className="text-muted-foreground hover:text-foreground transition-colors">
               Overview
             </a>
@@ -50,17 +51,20 @@ export function Header() {
             </a>
           </nav>
         </div>
-        <div className="flex items-center space-x-4">
-          <Button variant="ghost" className="hidden md:inline-flex text-xs font-mono" asChild>
+        <div className="flex items-center space-x-1 sm:space-x-4">
+          <Button variant="ghost" className="hidden lg:inline-flex text-xs font-mono" asChild>
             <Link to="/dashboard?view=inspector">Course Inspector</Link>
           </Button>
-          <Button asChild className="bg-[#171717] text-white hover:bg-[#6c4cff] transition-colors">
-            <Link to="/dashboard">Launch Sandbox &rarr;</Link>
+          <Button asChild className="bg-[#171717] text-white hover:bg-[#6c4cff] transition-colors max-[420px]:px-2">
+            <Link to="/dashboard" aria-label="Launch Sandbox">
+              <span className="max-[420px]:hidden">Launch Sandbox &rarr;</span>
+              <span className="hidden max-[420px]:inline">Launch</span>
+            </Link>
           </Button>
           <Button
             variant="ghost"
             size="icon"
-            className="md:hidden"
+            className="lg:hidden"
             aria-label="Toggle navigation"
             aria-expanded={mobileMenuOpen}
             onClick={() => setMobileMenuOpen((prev) => !prev)}
@@ -70,7 +74,7 @@ export function Header() {
         </div>
       </div>
       {mobileMenuOpen && (
-        <div className="md:hidden border-t bg-background/95 px-4 py-4 space-y-3 backdrop-blur shadow-lg">
+        <div className="lg:hidden border-t bg-background/95 px-4 py-4 space-y-3 backdrop-blur shadow-lg">
           <nav className="flex flex-col space-y-2 text-sm">
             <a
               href="#overview"

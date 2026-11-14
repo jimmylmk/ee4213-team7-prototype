@@ -17,7 +17,7 @@ import {
   ShieldCheck,
   RotateCcw,
   FileText,
-  GripVertical
+  CircleHelp
 } from "lucide-react";
 import {
   masterSchedule,
@@ -34,13 +34,18 @@ import { BrandMark } from "./Header";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { SyllabusDrawer } from "./SyllabusDrawer";
+import { AnimatedOverlay } from "./AnimatedOverlay";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "./ui/accordion";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "./ui/sheet";
 import { Toaster } from "./ui/sonner";
 import { toast } from "sonner";
+import { scrollIntoViewWithMotion } from "../utils/motion";
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
 const GRID_START_MINUTES = 8 * 60;
 const GRID_END_MINUTES = 23 * 60;
 const PIXELS_PER_HOUR = 44;
+const MIN_EVENT_HEIGHT = 38;
 const GRID_HEIGHT = (GRID_END_MINUTES - GRID_START_MINUTES) / 60 * PIXELS_PER_HOUR;
 type CreditPolicy = 'standard' | 'overload' | 'final_sem';
 
@@ -91,7 +96,7 @@ interface PersonalCommitment {
   id: string;
   label: string;
   category: 'Internship' | 'Part-time work' | 'Hackathon / project' | 'Personal';
-  days: Array<'Mon' | 'Tue' | 'Wed' | 'Thu' | 'Fri'>;
+  days: Array<'Mon' | 'Tue' | 'Wed' | 'Thu' | 'Fri' | 'Sat'>;
   startHour: number;
   endHour: number;
   enabled: boolean;
@@ -107,13 +112,13 @@ interface ActivePersonalBlock {
   category: PersonalCommitment['category'];
 }
 
-const COMMITMENT_DAYS: PersonalCommitment['days'] = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+const COMMITMENT_DAYS: PersonalCommitment['days'] = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const DEFAULT_COMMITMENTS: PersonalCommitment[] = [
   { id: 'pc-1', label: 'Part-time internship shift', category: 'Internship', days: ['Thu'], startHour: 14, endHour: 16, enabled: true },
   { id: 'pc-2', label: 'Independent study & commute', category: 'Personal', days: ['Mon'], startHour: 10, endHour: 12, enabled: true }
 ];
 
-const formatHour = (hour: number) => `${String(hour).padStart(2, '0')}:00`;
+const formatHour = (hour: number) => `${String(Math.floor(hour)).padStart(2, '0')}:${hour % 1 ? '30' : '00'}`;
 
 const courseDescriptions: Record<string, string> = {
   'EE4213': 'Direct manipulation interfaces, heuristic evaluation, Norman design models, cognitive affordances, and user-centered interface architecture.',
@@ -140,6 +145,7 @@ export function Dashboard() {
   const [openPostId, setOpenPostId] = useState<string | null>(null);
   const [blogSearchQuery, setBlogSearchQuery] = useState('');
   const [blogFilter, setBlogFilter] = useState<'all' | 'stem' | 'ge' | 'workload' | 'transfer'>('all');
+  const [blogVerificationFilter, setBlogVerificationFilter] = useState<'all' | BlogPost['verificationStatus']>('all');
   const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
   const [helpfulPostIds, setHelpfulPostIds] = useState<string[]>([]);
   const [shareExperienceOpen, setShareExperienceOpen] = useState(false);
@@ -151,6 +157,7 @@ export function Dashboard() {
   const [shareBody, setShareBody] = useState('');
   const activeBlogPost = posts.find(post => post.id === openPostId);
   const activeBlogCourseCode = activeBlogPost?.courseCode;
+  const activeBlogCourse = masterSchedule.find(course => course.code === activeBlogCourseCode);
   const toggleHelpfulPost = (postId: string) => {
     setHelpfulPostIds(current => current.includes(postId)
       ? current.filter(id => id !== postId)
@@ -162,17 +169,25 @@ export function Dashboard() {
   const normalizedBlogQuery = blogSearchQuery.trim().toLowerCase();
   const filteredBlogPosts = posts.filter(post => {
     const matchesCategory = blogFilter === 'all' || post.tags.includes(blogFilter);
+    const matchesVerification = blogVerificationFilter === 'all' || post.verificationStatus === blogVerificationFilter;
     const searchableText = [post.courseCode, post.title, post.subtitle, post.author]
       .filter(Boolean)
       .join(' ')
       .toLowerCase();
-    return matchesCategory && (!normalizedBlogQuery || searchableText.includes(normalizedBlogQuery));
+    return matchesCategory && matchesVerification && (!normalizedBlogQuery || searchableText.includes(normalizedBlogQuery));
   });
 
   // Simulation State
   const [enrolled, setEnrolled] = useState<string[]>([...studentProfile.baselineEnrolled]);
   const [swapOutId, setSwapOutId] = useState<string | null>(null);
-  const [selectedReplacement, setSelectedReplacement] = useState<string | null>(null);
+  const [selectedReplacements, setSelectedReplacementsState] = useState<string[]>([]);
+  // Keep the draft current between batched actions so rapid additions cannot bypass the ceiling.
+  const selectedReplacementsRef = useRef<string[]>([]);
+  const setSelectedReplacements = (update: string[] | ((current: string[]) => string[])) => {
+    const next = typeof update === 'function' ? update(selectedReplacementsRef.current) : update;
+    selectedReplacementsRef.current = next;
+    setSelectedReplacementsState(next);
+  };
   const [selectedSections, setSelectedSections] = useState<Record<string, { tutorialCrn?: string; labCrn?: string }>>({});
   const [creditPolicy, setCreditPolicy] = useState<CreditPolicy>('standard');
   const [hoveredCourseCode, setHoveredCourseCode] = useState<string | null>(null);
@@ -184,7 +199,13 @@ export function Dashboard() {
   const [newDays, setNewDays] = useState<PersonalCommitment['days']>([]);
   const [newStartHour, setNewStartHour] = useState(9);
   const [newEndHour, setNewEndHour] = useState(10);
+  const [editingCommitmentId, setEditingCommitmentId] = useState<string | null>(null);
+  const [editingCommitmentDay, setEditingCommitmentDay] = useState<PersonalCommitment['days'][number] | null>(null);
   const [draggedCourseCode, setDraggedCourseCode] = useState<string | null>(null);
+  const [draggedStagedCode, setDraggedStagedCode] = useState<string | null>(null);
+  const [draggedPersonalBlock, setDraggedPersonalBlock] = useState<ActivePersonalBlock | null>(null);
+  const [personalDragOffset, setPersonalDragOffset] = useState(0);
+  const [personalDropPreview, setPersonalDropPreview] = useState<{ day: PersonalCommitment['days'][number]; startHour: number } | null>(null);
   const [highlightBridge, setHighlightBridge] = useState<boolean>(false);
   const [activeFilter, setActiveFilter] = useState<'all' | 'ge' | 'stem' | 'coursework' | 'open' | 'noclash'>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -251,9 +272,12 @@ export function Dashboard() {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const controlGateRef = useRef<HTMLDivElement>(null);
   const commitmentManagerRef = useRef<HTMLDivElement>(null);
+  const commitmentTitleRef = useRef<HTMLInputElement>(null);
+  const shareExperienceRef = useRef<HTMLDivElement>(null);
   const profileMenuRef = useRef<HTMLDivElement>(null);
   const [navHistory, setNavHistory] = useState<Array<{ tab: typeof activeTab; postId: string | null }>>([]);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
 
   // Closing the gate always clears the attestation checklist so ticks never carry over to a different swap
   const closeControlGate = () => {
@@ -283,6 +307,8 @@ export function Dashboard() {
   // Keyboard Accelerators
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (helpOpen) return;
+      if (syllabusDrawerOpen && activeTab === 'inspector') return;
       const target = e.target as HTMLElement;
       // The search box only exists on the Timetable view, and must not steal focus from the open modal
       if (e.key === '/' && target.tagName !== 'INPUT' && target.tagName !== 'TEXTAREA' && target.tagName !== 'SELECT') {
@@ -291,12 +317,14 @@ export function Dashboard() {
         searchInputRef.current?.focus();
         searchInputRef.current?.select();
       } else if (e.key === 'Escape') {
-        if (showCommitmentManager) {
+        if (shareExperienceOpen) {
+          setShareExperienceOpen(false);
+        } else if (showCommitmentManager) {
           setShowCommitmentManager(false);
         } else if (controlGateOpen) {
           closeControlGate();
-        } else if (selectedReplacement) {
-          setSelectedReplacement(null);
+        } else if (selectedReplacements.length) {
+          setSelectedReplacements([]);
         } else if (searchQuery) {
           setSearchQuery('');
           searchInputRef.current?.blur();
@@ -305,11 +333,19 @@ export function Dashboard() {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [activeTab, controlGateOpen, showCommitmentManager, selectedReplacement, searchQuery]);
+  }, [activeTab, controlGateOpen, showCommitmentManager, selectedReplacements, searchQuery, helpOpen, syllabusDrawerOpen, shareExperienceOpen]);
 
   useEffect(() => {
     if (showCommitmentManager) commitmentManagerRef.current?.focus();
   }, [showCommitmentManager]);
+
+  useEffect(() => {
+    if (showCommitmentManager && editingCommitmentId) commitmentTitleRef.current?.focus();
+  }, [showCommitmentManager, editingCommitmentId, editingCommitmentDay]);
+
+  useEffect(() => {
+    if (shareExperienceOpen) shareExperienceRef.current?.focus();
+  }, [shareExperienceOpen]);
 
   // Move keyboard focus into the dialog when it opens
   useEffect(() => {
@@ -319,7 +355,8 @@ export function Dashboard() {
   // Scroll the requested blog post into view after the Blogs tab renders
   useEffect(() => {
     if (activeTab === 'blogs' && openPostId) {
-      document.getElementById(`blog-post-${openPostId}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      const post = document.getElementById(`blog-post-${openPostId}`);
+      if (post) scrollIntoViewWithMotion(post, { block: 'start' });
     }
   }, [activeTab, openPostId]);
 
@@ -366,26 +403,54 @@ export function Dashboard() {
     return enrolledCourses.reduce((sum, c) => sum + c.credits, 0);
   }, [enrolledCourses]);
 
-  const projectedCredits = useMemo(() => {
+  const calculateProjectedCredits = (replacements: string[]) => {
     let creds = currentTotalCredits;
     if (swapOutId) {
       const outCourse = masterSchedule.find(c => c.code === swapOutId);
       if (outCourse) creds -= outCourse.credits;
     }
-    if (selectedReplacement) {
-      const inCourse = masterSchedule.find(c => c.code === selectedReplacement);
+    for (const code of replacements) {
+      const inCourse = masterSchedule.find(c => c.code === code);
       if (inCourse) creds += inCourse.credits;
     }
     return creds;
-  }, [currentTotalCredits, swapOutId, selectedReplacement]);
+  };
+  const projectedCredits = calculateProjectedCredits(selectedReplacements);
   const activeMinCredits = CREDIT_POLICY_LIMITS[creditPolicy].minCredits;
   const activeMaxCredits = CREDIT_POLICY_LIMITS[creditPolicy].maxCredits;
 
   // Staged course object
-  const stagedCourse = useMemo(() => {
-    if (!selectedReplacement) return null;
-    return masterSchedule.find(c => c.code === selectedReplacement) || null;
-  }, [selectedReplacement]);
+  const stagedCourses = useMemo(
+    () => selectedReplacements.flatMap(code => {
+      const course = masterSchedule.find(c => c.code === code);
+      return course ? [course] : [];
+    }), [selectedReplacements]
+  );
+
+  const getStageCreditReason = (course: Course, replacements = selectedReplacements) => {
+    if (replacements.includes(course.code) || enrolled.includes(course.code)) return null;
+    const total = calculateProjectedCredits(replacements) + course.credits;
+    if (total <= activeMaxCredits) return null;
+    const overloadOption = creditPolicy !== 'overload' && total <= CREDIT_POLICY_LIMITS.overload.maxCredits
+      ? ' If approved, you can also select the overload policy.'
+      : '';
+    return `Adding ${course.code} would raise the draft to ${total.toFixed(1)} CR, above the ${activeMaxCredits.toFixed(1)} CR limit. Remove a staged course or mark an enrolled course for drop.${overloadOption}`;
+  };
+
+  const validateDraftCourse = (course: Course, otherCourses = stagedCourses) => {
+    const result = validateCourse(course, enrolled, swapOutId, false, selectedSections);
+    const reasons = [...result.reasons];
+    for (const other of otherCourses.filter(item => item.code !== course.code)) {
+      for (const a of getResolvedMeetings(course, selectedSections)) {
+        for (const b of getResolvedMeetings(other, selectedSections)) {
+          if (a.day === b.day && Math.max(parseMinutes(a.start), parseMinutes(b.start)) < Math.min(parseMinutes(a.end), parseMinutes(b.end))) {
+            reasons.push(`Schedule Conflict: ${course.code} (${a.section}) clashes with staged ${other.code} (${b.section}) on ${a.day}.`);
+          }
+        }
+      }
+    }
+    return { ok: reasons.length === 0, reasons };
+  };
 
   const swapOutCourse = useMemo(() => {
     if (!swapOutId) return null;
@@ -418,15 +483,17 @@ export function Dashboard() {
   const personalOverlapMessage = (block: ActivePersonalBlock) =>
     `Overlaps "${block.label}" (${block.day} ${formatHour(block.startHour)}-${formatHour(block.endHour)} · You entered).`;
 
-  const stagedPersonalOverlaps = stagedCourse ? getPersonalOverlaps(stagedCourse) : [];
-  const overlapKey = `${stagedCourse?.code ?? ''}|${stagedPersonalOverlaps.map(block => `${block.id}:${block.startHour}:${block.endHour}`).join('|')}`;
+  const stagedPersonalOverlaps = activePersonalBlocks.filter(block =>
+    stagedCourses.some(course => getPersonalOverlaps(course).some(overlap => overlap.id === block.id))
+  );
+  const overlapKey = `${selectedReplacements.join(',')}|${stagedPersonalOverlaps.map(block => `${block.id}:${block.startHour}:${block.endHour}`).join('|')}`;
   useEffect(() => {
     setPersonalOverlapAcknowledged(false);
   }, [overlapKey]);
 
   const fatigueWarnings = useMemo(() => DAYS.flatMap(day => {
     const courses = enrolledCourses.filter(course => course.code !== swapOutId);
-    if (stagedCourse) courses.push(stagedCourse);
+    courses.push(...stagedCourses);
     const intervals = [
       ...courses.flatMap(course => getResolvedMeetings(course, selectedSections)
         .filter(meeting => meeting.day === day)
@@ -444,17 +511,16 @@ export function Dashboard() {
       const formatTime = (minutes: number) => `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
       return `${day} ${formatTime(interval.start)}-${formatTime(interval.end)}: more than 6 continuous hours of scheduled activity.`;
     });
-  }), [enrolledCourses, swapOutId, stagedCourse, selectedSections, activePersonalBlocks]);
+  }), [enrolledCourses, swapOutId, stagedCourses, selectedSections, activePersonalBlocks]);
 
   // Conflict detection for active staged course: every failing rule, not just the first
   const activeConflicts = useMemo(() => {
-    if (!stagedCourse) return [] as string[];
-    return validateCourse(stagedCourse, enrolled, swapOutId, false, selectedSections).reasons;
-  }, [stagedCourse, enrolled, swapOutId, selectedSections]);
+    return stagedCourses.flatMap((course, index) => validateDraftCourse(course, stagedCourses.slice(index + 1)).reasons);
+  }, [stagedCourses, enrolled, swapOutId, selectedSections]);
 
   const wouldBeBelowMin = projectedCredits < activeMinCredits;
   const wouldExceedMax = projectedCredits > activeMaxCredits;
-  const hasPendingChange = Boolean(stagedCourse || swapOutCourse);
+  const hasPendingChange = Boolean(stagedCourses.length || swapOutCourse);
 
   // Why the Control Gate Confirm button is disabled (empty when it can be pressed once attested)
   const confirmBlockers = useMemo(() => {
@@ -477,7 +543,7 @@ export function Dashboard() {
   }, [hasPendingChange, activeConflicts, wouldBeBelowMin, wouldExceedMax, activeMinCredits, activeMaxCredits, projectedCredits]);
 
   // The attestation steps depend on the kind of change: add-only has no drop, drop-only has no add
-  const needsAddSteps = Boolean(stagedCourse);
+  const needsAddSteps = stagedCourses.length > 0;
   const needsDropStep = Boolean(swapOutCourse);
   const checklistComplete =
     (!needsAddSteps || (handoffStep1 && handoffStep3)) && (!needsDropStep || handoffStep2);
@@ -508,7 +574,7 @@ export function Dashboard() {
             laneCount: 1
           }))
       );
-      if (stagedCourse) {
+      for (const stagedCourse of stagedCourses) {
         events.push(...getResolvedMeetings(stagedCourse, selectedSections)
           .filter(meeting => meeting.day === day)
           .map(meeting => ({
@@ -549,16 +615,25 @@ export function Dashboard() {
         });
       }
       events.sort((a, b) => a.start - b.start || a.end - b.end);
-      const laneEnds: number[] = [];
-      for (const event of events.filter(event => event.kind !== 'personalBlock')) {
-        let lane = laneEnds.findIndex(laneEnd => laneEnd <= event.start);
-        if (lane < 0) lane = laneEnds.length;
-        laneEnds[lane] = event.end;
-        event.lane = lane;
-      }
+      let laneEnds: number[] = [];
+      let group: TimetableEvent[] = [];
+      let groupEnd = 0;
       for (const event of events) {
-        event.laneCount = event.kind === 'personalBlock' ? 1 : Math.max(1, laneEnds.length);
+        const start = Math.max(event.start, GRID_START_MINUTES);
+        const end = Math.max(Math.min(event.end, GRID_END_MINUTES), start + MIN_EVENT_HEIGHT / PIXELS_PER_HOUR * 60);
+        if (group.length && start >= groupEnd) {
+          group.forEach(item => { item.laneCount = laneEnds.length; });
+          group = [];
+          laneEnds = [];
+        }
+        let lane = laneEnds.findIndex(laneEnd => laneEnd <= start);
+        if (lane < 0) lane = laneEnds.length;
+        laneEnds[lane] = end;
+        event.lane = lane;
+        group.push(event);
+        groupEnd = Math.max(group.length === 1 ? 0 : groupEnd, end);
       }
+      group.forEach(item => { item.laneCount = laneEnds.length; });
 
       for (const a of events) {
         for (const b of events) {
@@ -575,7 +650,7 @@ export function Dashboard() {
       result[day] = events;
     }
     return result;
-  }, [enrolledCourses, stagedCourse, activePersonalBlocks, swapOutId, selectedSections]);
+  }, [enrolledCourses, stagedCourses, activePersonalBlocks, swapOutId, selectedSections]);
 
   const dragPreviewByDay = useMemo(() => {
     const result = Object.fromEntries(DAYS.map(day => [day, []])) as Record<typeof DAYS[number], DragPreviewMeeting[]>;
@@ -583,13 +658,8 @@ export function Dashboard() {
 
     const candidate = masterSchedule.find(course => course.code === draggedCourseCode);
     if (!candidate) return result;
-    const activeEnrolled = enrolledCourses.filter(course => course.code !== swapOutId);
-    const dragProjectedCredits = currentTotalCredits - (swapOutCourse?.credits || 0) + candidate.credits;
-    const creditCeilingReason = dragProjectedCredits > activeMaxCredits
-      ? swapOutId
-        ? `Exceeds ${activeMaxCredits} CR limit — choose a lower-credit replacement`
-        : `Exceeds ${activeMaxCredits} CR limit — mark a course to drop first`
-      : null;
+    const activeEnrolled = [...enrolledCourses.filter(course => course.code !== swapOutId), ...stagedCourses.filter(course => course.code !== candidate.code)];
+    const creditCeilingReason = getStageCreditReason(candidate) ? `Exceeds ${activeMaxCredits} CR limit` : null;
 
     for (const meeting of getResolvedMeetings(candidate, selectedSections)) {
       const reasons: string[] = [];
@@ -624,12 +694,12 @@ export function Dashboard() {
     }
 
     return result;
-  }, [draggedCourseCode, enrolledCourses, currentTotalCredits, swapOutCourse, activeMaxCredits, selectedSections, swapOutId, activePersonalBlocks]);
+  }, [draggedCourseCode, enrolledCourses, stagedCourses, projectedCredits, selectedReplacements, activeMaxCredits, creditPolicy, selectedSections, swapOutId, activePersonalBlocks]);
 
   // Filtered Catalogue
   const filteredCatalogue = useMemo(() => {
     let list = masterSchedule.filter(c => {
-      if (enrolled.includes(c.code) && swapOutId !== c.code) return false;
+      if (enrolled.includes(c.code)) return false;
       return true;
     });
 
@@ -637,7 +707,7 @@ export function Dashboard() {
     else if (activeFilter === 'stem') list = list.filter(c => c.category === 'stem');
     else if (activeFilter === 'coursework') list = list.filter(c => c.examPct === 0);
     else if (activeFilter === 'open') list = list.filter(c => c.quotaAvailable > 0);
-    else if (activeFilter === 'noclash') list = list.filter(c => validateCourse(c, enrolled, swapOutId, false, selectedSections).ok);
+    else if (activeFilter === 'noclash') list = list.filter(c => validateDraftCourse(c).ok);
 
     if (highlightBridge) list = list.filter(c => c.isBridge);
 
@@ -651,15 +721,27 @@ export function Dashboard() {
       );
     }
     return list;
-  }, [enrolled, swapOutId, activeFilter, highlightBridge, searchQuery, selectedSections]);
+  }, [enrolled, swapOutId, activeFilter, highlightBridge, searchQuery, selectedSections, stagedCourses]);
 
   // Staging actions
   const handleStageCourse = (code: string) => {
-    if (selectedReplacement === code) {
-      setSelectedReplacement(null);
-    } else {
-      setSelectedReplacement(code);
+    const course = masterSchedule.find(item => item.code === code);
+    if (!course) {
+      toast.error(`Course ${code} was not found in the catalogue.`);
+      return false;
     }
+    if (enrolled.includes(code)) {
+      toast.error(`${code} is already enrolled.`);
+      return false;
+    }
+    if (selectedReplacementsRef.current.includes(code)) return true;
+    const reason = getStageCreditReason(course, selectedReplacementsRef.current);
+    if (reason) {
+      toast.error(reason);
+      return false;
+    }
+    setSelectedReplacements(current => current.includes(code) ? current : [...current, code]);
+    return true;
   };
 
   const handleSelectSwapOut = (code: string) => {
@@ -684,9 +766,30 @@ export function Dashboard() {
     event.preventDefault();
     const courseCode = event.dataTransfer.getData('text/plain') || draggedCourseCode;
     if (!courseCode) return;
-    setSelectedReplacement(courseCode);
-    toast.success(`${courseCode} staged on the timetable`);
+    if (handleStageCourse(courseCode)) toast.success(`${courseCode} staged on the timetable`);
     setDraggedCourseCode(null);
+  };
+
+  const changePersonalDay = (block: ActivePersonalBlock, changes?: { day: PersonalCommitment['days'][number]; startHour: number; endHour: number }) => {
+    if (changes && changes.day === block.day && changes.startHour === block.startHour && changes.endHour === block.endHour) return;
+    setPersonalCommitments(current => current.flatMap(commitment => {
+      if (commitment.id !== block.commitmentId) return [commitment];
+      const remainingDays = commitment.days.filter(day => day !== block.day);
+      const remaining = remainingDays.length ? [{ ...commitment, days: remainingDays }] : [];
+      if (!changes) return remaining;
+      return [...remaining, { ...commitment, id: crypto.randomUUID(), days: [changes.day], startHour: changes.startHour, endHour: changes.endHour }];
+    }));
+  };
+
+  const editCommitment = (commitment: PersonalCommitment, day: PersonalCommitment['days'][number] | null = null) => {
+    setEditingCommitmentId(commitment.id);
+    setEditingCommitmentDay(day);
+    setNewLabel(commitment.label);
+    setNewCategory(commitment.category);
+    setNewDays(day ? [day] : [...commitment.days]);
+    setNewStartHour(commitment.startHour);
+    setNewEndHour(commitment.endHour);
+    setShowCommitmentManager(true);
   };
 
   const renderSectionSelectors = (course: Course, compact = false) => {
@@ -759,12 +862,10 @@ export function Dashboard() {
     if (swapOutId) {
       newEnrolled = newEnrolled.filter(c => c !== swapOutId);
     }
-    if (stagedCourse) {
-      newEnrolled.push(stagedCourse.code);
-    }
+    newEnrolled.push(...stagedCourses.map(course => course.code));
     setEnrolled(newEnrolled);
     setSwapConfirmed(true);
-    setSelectedReplacement(null);
+    setSelectedReplacements([]);
     setSwapOutId(null);
     setHandoffStep1(false);
     setHandoffStep2(false);
@@ -776,7 +877,7 @@ export function Dashboard() {
     setPersonalCommitments(DEFAULT_COMMITMENTS.map(commitment => ({ ...commitment, days: [...commitment.days] })));
     setBlockPersonalTime(true);
     setSwapOutId(null);
-    setSelectedReplacement(null);
+    setSelectedReplacements([]);
     setControlGateOpen(false);
     setSwapConfirmed(false);
     setHandoffStep1(false);
@@ -803,14 +904,14 @@ export function Dashboard() {
 
   // Single source of truth: the Inspector verdict comes from the same validateCourse() call the Timetable uses
   const inspectorValidation = useMemo(
-    () => inspectorCourse ? validateCourse(inspectorCourse, enrolled, swapOutId, false, selectedSections) : null,
-    [inspectorCourse, enrolled, swapOutId, selectedSections]
+    () => inspectorCourse ? validateDraftCourse(inspectorCourse) : null,
+    [inspectorCourse, enrolled, swapOutId, selectedSections, stagedCourses]
   );
 
   const scheduleFitDiagnostics = useMemo(() => {
     if (!inspectorCourse || !inspectorValidation) return null;
     const isEnrolled = enrolled.includes(inspectorCourse.code);
-    const isStaged = selectedReplacement === inspectorCourse.code;
+    const isStaged = selectedReplacements.includes(inspectorCourse.code);
 
     if (isEnrolled) {
       return {
@@ -846,11 +947,11 @@ export function Dashboard() {
     }
 
     return {
-      text: `[SCHEDULE FIT: NO CONFLICTS · ELIGIBLE TO STAGE]`,
+      text: `[SCHEDULE FIT: NO CONFLICTS]`,
       color: 'text-green-800 bg-green-50 border-green-200',
       isAlert: false
     };
-  }, [enrolled, selectedReplacement, inspectorCourse, inspectorValidation, activePersonalBlocks, selectedSections]);
+  }, [enrolled, selectedReplacements, inspectorCourse, inspectorValidation, activePersonalBlocks, selectedSections]);
 
   // Workload Hour Segments
   const workloadMetrics = useMemo(() => {
@@ -876,7 +977,7 @@ export function Dashboard() {
       <Toaster position="bottom-right" />
       {/* Top Application Bar */}
       <header className="sticky top-0 z-30 border-b border-black/10 bg-white/95 backdrop-blur">
-        <div className="mx-auto flex max-w-[1600px] flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2.5 md:px-8">
+        <div className="mx-auto flex max-w-[1600px] flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2.5 md:px-8 lg:grid lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
           <div className="flex shrink-0 items-center gap-2.5 pr-2">
             {(navHistory.length > 0 || openPostId !== null) && (
               <button
@@ -890,20 +991,20 @@ export function Dashboard() {
               </button>
             )}
             <BrandMark />
-            <span className="font-semibold text-sm tracking-tight">SafeSwap</span>
+            <span className="font-semibold text-sm tracking-tight">CityU <span className="text-violet-600">CampuSync</span></span>
           </div>
 
           {/* Segmented view switcher */}
           <nav
             aria-label="Simulator views"
-            className="relative order-last grid w-full grid-cols-3 gap-1 rounded-xl bg-[#eeece6] p-1 md:order-none md:w-auto"
+            className="relative order-last grid w-full grid-cols-3 gap-1 rounded-xl bg-[#eeece6] p-1 lg:order-none lg:w-auto"
           >
             <span
               aria-hidden="true"
-              className="pointer-events-none absolute bottom-1 top-1 rounded-lg bg-[#171717] shadow-sm transition-[left] duration-300 ease-out motion-reduce:transition-none"
+              className="pointer-events-none absolute bottom-1 left-1 top-1 rounded-lg bg-[#171717] shadow-sm transition-transform duration-300 ease-out motion-reduce:transition-none"
               style={{
                 width: 'calc(33.333333% - 5.333333px)',
-                left: `calc(${TABS.findIndex(tab => tab.id === activeTab) * 100 / 3}% + ${4 - TABS.findIndex(tab => tab.id === activeTab) * 4 / 3}px)`
+                transform: `translateX(calc(${TABS.findIndex(tab => tab.id === activeTab) * 100}% + ${TABS.findIndex(tab => tab.id === activeTab) * 4}px))`
               }}
             />
             {TABS.map(({ id, label, icon: Icon }) => (
@@ -923,7 +1024,93 @@ export function Dashboard() {
             ))}
           </nav>
 
-          <div ref={profileMenuRef} className="relative ml-auto shrink-0">
+          <div className="ml-auto flex shrink-0 items-center gap-2">
+            <Sheet open={helpOpen} onOpenChange={open => {
+              setHelpOpen(open);
+              if (open) {
+                setInspectorDropdownOpen(false);
+                setProfileMenuOpen(false);
+              }
+            }}>
+              <SheetTrigger asChild>
+                <button
+                  type="button"
+                  title="How it works"
+                  className="flex h-10 items-center justify-center gap-1.5 rounded-xl border border-[#E4E1DA] bg-white px-2.5 text-xs font-semibold text-[#18181B] transition-colors hover:bg-[#f8f7f3] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#18181B]"
+                >
+                  <CircleHelp className="h-4 w-4" aria-hidden="true" />
+                  <span className="sr-only sm:not-sr-only">How it works</span>
+                </button>
+              </SheetTrigger>
+              <SheetContent
+                onEscapeKeyDown={event => event.stopPropagation()}
+                className="w-full max-w-[min(100vw,28rem)] gap-0 overflow-y-auto border-[#E4E1DA] bg-[#F7F5F0] sm:max-w-md data-[state=open]:duration-200 data-[state=closed]:duration-150 motion-reduce:!animate-none motion-reduce:!transition-none"
+              >
+                <SheetHeader className="border-b border-[#E4E1DA] px-6 pb-5 pt-8 pr-12 text-left">
+                  <SheetTitle className="text-xl font-bold tracking-tight text-[#18181B]">How CityU CampuSync works</SheetTitle>
+                  <SheetDescription className="text-sm leading-relaxed text-[#52525B]">
+                    A quick guide to exploring courses and rehearsing a schedule.
+                  </SheetDescription>
+                </SheetHeader>
+                <div className="space-y-5 px-6 py-6">
+                  <div className="rounded-xl border border-[#d1e5a0] bg-[#eff8d7] p-4 text-[#18181B]">
+                    <p className="text-sm font-semibold">This is a simulation</p>
+                    <p className="mt-1 text-xs leading-relaxed">
+                      CityU CampuSync does not change your AIMS registration. Check live course information and register separately in AIMS.
+                    </p>
+                    <p className="mt-2 text-xs leading-relaxed">
+                      Your draft, personal time and blog contributions are temporary and are lost when you reload or leave the app.
+                    </p>
+                  </div>
+                  <div>
+                    <h3 className="mb-2 text-xs font-semibold text-[#52525B]">Find an answer</h3>
+                    <Accordion type="multiple" className="overflow-hidden rounded-xl border border-[#E4E1DA] bg-white motion-reduce:[&_svg]:transition-none">
+                      <AccordionItem value="swap" className="border-[#E4E1DA] px-4">
+                        <AccordionTrigger className="py-4 font-semibold text-[#18181B] hover:no-underline focus-visible:ring-[#18181B]/50 motion-reduce:transition-none">
+                          How do I try a course swap?
+                        </AccordionTrigger>
+                        <AccordionContent className="text-sm leading-relaxed text-[#52525B]">
+                          Select an enrolled course to mark it for drop, then stage one or more courses from the catalogue. Review the whole draft together. To remove a staged course, use its remove button or drag it to the removal area.
+                        </AccordionContent>
+                      </AccordionItem>
+                      <AccordionItem value="warnings" className="border-[#E4E1DA] px-4">
+                        <AccordionTrigger className="py-4 font-semibold text-[#18181B] hover:no-underline focus-visible:ring-[#18181B]/50 motion-reduce:transition-none">
+                          What do the warnings mean?
+                        </AccordionTrigger>
+                        <AccordionContent className="text-sm leading-relaxed text-[#52525B]">
+                          Courses that exceed your selected credit maximum cannot be staged. Academic clashes, unavailable seats, missing prerequisites and credit limits can prevent confirmation. Personal time overlaps are warnings, so you can decide whether to proceed.
+                        </AccordionContent>
+                      </AccordionItem>
+                      <AccordionItem value="personal-time" className="border-[#E4E1DA] px-4">
+                        <AccordionTrigger className="py-4 font-semibold text-[#18181B] hover:no-underline focus-visible:ring-[#18181B]/50 motion-reduce:transition-none">
+                          How do I add personal time?
+                        </AccordionTrigger>
+                        <AccordionContent className="text-sm leading-relaxed text-[#52525B]">
+                          Use the pencil next to Personal time to add or edit commitments. Drag a personal block to move that weekday, or select the block to edit it. Use the switch to show or hide personal time. Reset restores the sample schedule and commitments.
+                        </AccordionContent>
+                      </AccordionItem>
+                      <AccordionItem value="inspect" className="border-[#E4E1DA] px-4">
+                        <AccordionTrigger className="py-4 font-semibold text-[#18181B] hover:no-underline focus-visible:ring-[#18181B]/50 motion-reduce:transition-none">
+                          How do I inspect a course?
+                        </AccordionTrigger>
+                        <AccordionContent className="text-sm leading-relaxed text-[#52525B]">
+                          Select Inspect Details on a course or search in Course Inspector to see its schedule, assessment details, syllabus and related blog posts. Course details and blog posts are prototype data; check official sources before making decisions.
+                        </AccordionContent>
+                      </AccordionItem>
+                      <AccordionItem value="aims" className="border-[#E4E1DA] px-4">
+                        <AccordionTrigger className="py-4 font-semibold text-[#18181B] hover:no-underline focus-visible:ring-[#18181B]/50 motion-reduce:transition-none">
+                          How do I register in AIMS?
+                        </AccordionTrigger>
+                        <AccordionContent className="text-sm leading-relaxed text-[#52525B]">
+                          Open the Control Gate to review your changes and checklist. Check live seat availability and complete the applicable registration steps in AIMS yourself, then tick the checklist and confirm the change in the simulation.
+                        </AccordionContent>
+                      </AccordionItem>
+                    </Accordion>
+                  </div>
+                </div>
+              </SheetContent>
+            </Sheet>
+          <div ref={profileMenuRef} className="relative shrink-0">
             <button
               type="button"
               onClick={() => setProfileMenuOpen(open => !open)}
@@ -941,7 +1128,7 @@ export function Dashboard() {
                   className="absolute inset-0 h-full w-full object-cover"
                 />
               </span>
-              <span>Marcus Li</span>
+              <span className="max-[380px]:hidden">Marcus Li</span>
               <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${profileMenuOpen ? 'rotate-180' : ''}`} aria-hidden="true" />
             </button>
 
@@ -985,6 +1172,7 @@ export function Dashboard() {
               </div>
             )}
           </div>
+          </div>
         </div>
       </header>
 
@@ -994,7 +1182,7 @@ export function Dashboard() {
 
           {/* TAB 1: REHEARSAL TIMETABLE */}
           {activeTab === 'rehearsal' && (
-            <div className="space-y-6">
+            <div className="space-y-6 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-1 motion-safe:duration-200 motion-safe:ease-out">
               {/* Eyebrow and Page Heading */}
               <div className="flex flex-col xl:flex-row xl:items-end justify-between gap-4 border-b border-black/10 pb-5">
                 <div>
@@ -1005,7 +1193,7 @@ export function Dashboard() {
                     Weekly Schedule & Safe-Swap Canvas
                   </h1>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Click an enrolled course card (or press Enter / Space on it) to mark it for drop, then stage an elective from the catalogue.
+                    Mark an enrolled course for drop if needed, then stage one or more courses from the catalogue.
                   </p>
                 </div>
 
@@ -1041,7 +1229,7 @@ export function Dashboard() {
                       onClick={() => setControlGateOpen(true)}
                       className="h-9 bg-[#171717] text-xs font-semibold text-white hover:bg-[#6c4cff]"
                     >
-                      Review Swap
+                      Review Draft
                       <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
                     </Button>
                   )}
@@ -1082,7 +1270,7 @@ export function Dashboard() {
                   <ul className="mt-1 list-disc space-y-1 pl-4">
                     {stagedPersonalOverlaps.map(block => <li key={block.id}>{personalOverlapMessage(block)}</li>)}
                   </ul>
-                  <p className="mt-1">You can still stage and review this course.</p>
+                  <p className="mt-1">You can still stage and review these courses.</p>
                 </div>
               )}
               {fatigueWarnings.length > 0 && (
@@ -1113,7 +1301,8 @@ export function Dashboard() {
                 <div role="alert" className="bg-[#fff1f2] border-l-4 border-red-600 p-4 rounded-r-lg flex items-start gap-3">
                   <AlertTriangle className="h-5 w-5 text-red-600 shrink-0 mt-0.5" />
                   <p className="text-xs font-semibold text-red-800">
-                    Credit Ceiling Exceeded ({projectedCredits.toFixed(1)} / {activeMaxCredits.toFixed(1)} CR). Mark an enrolled course for drop or switch to Overload Approved (21 CR).
+                    Credit Ceiling Exceeded ({projectedCredits.toFixed(1)} / {activeMaxCredits.toFixed(1)} CR). Remove a staged course or mark an enrolled course for drop.
+                    {creditPolicy !== 'overload' && projectedCredits <= CREDIT_POLICY_LIMITS.overload.maxCredits && ' If approved, you can also select the overload policy.'}
                   </p>
                 </div>
               )}
@@ -1124,7 +1313,7 @@ export function Dashboard() {
                   <div className="flex items-center gap-3">
                     <CheckCircle className="h-5 w-5 text-green-600" />
                     <span className="text-xs font-medium text-green-800">
-                      Simulated swap applied to weekly timetable. Follow the Control Gate checklist on AIMS to finalize.
+                      Simulated draft applied to the weekly timetable. Complete registration separately on AIMS.
                     </span>
                   </div>
                   <button onClick={() => setSwapConfirmed(false)} className="text-green-700 hover:text-green-900 text-xs">
@@ -1134,7 +1323,7 @@ export function Dashboard() {
               )}
 
               {/* Staging Dock Status Strip */}
-              {(swapOutId || selectedReplacement) && (
+              {hasPendingChange && (
                 <div className="bg-white border border-black/10 p-4 rounded-xl shadow-sm flex flex-col md:flex-row items-center justify-between gap-4">
                   <div className="flex items-center gap-4 text-xs">
                     <div className="flex items-center gap-2">
@@ -1151,11 +1340,13 @@ export function Dashboard() {
                     <ArrowRight className="h-3.5 w-3.5 text-muted-foreground hidden sm:block" />
 
                     <div className="flex items-center gap-2">
-                      <span className="font-mono text-[11px] text-muted-foreground uppercase">Candidate to Add:</span>
-                      {stagedCourse ? (
-                        <Badge className="bg-[#ece9ff] text-[#34266f] border border-[#d9ccff] hover:bg-[#ece9ff]">
-                          {stagedCourse.code} ({stagedCourse.credits} CR)
-                        </Badge>
+                      <span className="font-mono text-[11px] text-muted-foreground uppercase">Courses to Add:</span>
+                      {stagedCourses.length ? (
+                        <div className="flex flex-wrap gap-1">{stagedCourses.map(course => (
+                          <Badge key={course.code} className="bg-[#ece9ff] text-[#34266f] border border-[#d9ccff] hover:bg-[#ece9ff]">
+                            {course.code} ({course.credits} CR)
+                          </Badge>
+                        ))}</div>
                       ) : (
                         <span className="text-muted-foreground italic font-mono">[None staged]</span>
                       )}
@@ -1173,7 +1364,7 @@ export function Dashboard() {
                     <Button
                       size="sm"
                       variant="ghost"
-                      onClick={() => { setSwapOutId(null); setSelectedReplacement(null); }}
+                      onClick={() => { setSwapOutId(null); setSelectedReplacements([]); }}
                       className="text-xs h-8"
                     >
                       Clear Staging
@@ -1221,7 +1412,12 @@ export function Dashboard() {
                           type="button"
                           aria-label="Edit personal commitments"
                           title="Edit personal commitments"
-                          onClick={() => setShowCommitmentManager(true)}
+                          onClick={() => {
+                            setEditingCommitmentId(null);
+                            setEditingCommitmentDay(null);
+                            setNewLabel('');
+                            setShowCommitmentManager(true);
+                          }}
                           className="inline-flex items-center justify-center rounded-r-full border-l border-[#18181B]/20 px-1.5 text-[10px] leading-none transition-colors hover:bg-black/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#18181B]"
                         >
                           <Pencil className="h-3 w-3" aria-hidden="true" />
@@ -1231,9 +1427,25 @@ export function Dashboard() {
                     </div>
                   </div>
 
+                  {draggedStagedCode && (
+                    <div
+                      role="status"
+                      onDragOver={event => { event.preventDefault(); event.dataTransfer.dropEffect = 'move'; }}
+                      onDrop={event => {
+                        event.preventDefault();
+                        setSelectedReplacements(current => current.filter(code => code !== draggedStagedCode));
+                        toast.success(`${draggedStagedCode} removed from the draft`);
+                        setDraggedStagedCode(null);
+                      }}
+                      className="mb-3 rounded-lg border border-dashed border-red-400 bg-red-50 p-3 text-center text-xs font-semibold text-red-800"
+                    >
+                      Drop here to remove {draggedStagedCode} from the draft
+                    </div>
+                  )}
                   <div
                     className="w-full overflow-hidden"
                     onDragOver={event => {
+                      if (!draggedCourseCode) return;
                       event.preventDefault();
                       event.dataTransfer.dropEffect = 'copy';
                     }}
@@ -1272,6 +1484,44 @@ export function Dashboard() {
                             className="relative h-[660px] overflow-hidden border-l border-black/10 bg-[#FCFBF8]"
                             style={{ height: GRID_HEIGHT }}
                             aria-label={`${day} timetable`}
+                            onDragOver={event => {
+                              if (!draggedPersonalBlock) return;
+                              event.preventDefault();
+                              event.stopPropagation();
+                              event.dataTransfer.dropEffect = 'move';
+                              const duration = draggedPersonalBlock.endHour - draggedPersonalBlock.startHour;
+                              const hour = GRID_START_MINUTES / 60 + (event.clientY - event.currentTarget.getBoundingClientRect().top) / PIXELS_PER_HOUR - personalDragOffset;
+                              const startHour = Math.max(8, Math.min(23 - duration, Math.round(hour * 2) / 2));
+                              setPersonalDropPreview({ day, startHour });
+                            }}
+                            onDrop={event => {
+                              if (!draggedPersonalBlock) return;
+                              event.preventDefault();
+                              event.stopPropagation();
+                              const duration = draggedPersonalBlock.endHour - draggedPersonalBlock.startHour;
+                              const hour = GRID_START_MINUTES / 60 + (event.clientY - event.currentTarget.getBoundingClientRect().top) / PIXELS_PER_HOUR - personalDragOffset;
+                              const startHour = Math.max(8, Math.min(23 - duration, Math.round(hour * 2) / 2));
+                              if (day === draggedPersonalBlock.day && startHour === draggedPersonalBlock.startHour) {
+                                setDraggedPersonalBlock(null);
+                                setPersonalDropPreview(null);
+                                return;
+                              }
+                              const source = personalCommitments.find(item => item.id === draggedPersonalBlock.commitmentId);
+                              if (day !== draggedPersonalBlock.day && source?.days.includes(day)) {
+                                toast.error(`This commitment already has a ${day} block. Edit or remove it first.`);
+                                setDraggedPersonalBlock(null);
+                                setPersonalDropPreview(null);
+                                return;
+                              }
+                              changePersonalDay(draggedPersonalBlock, {
+                                day,
+                                startHour,
+                                endHour: startHour + duration
+                              });
+                              setDraggedPersonalBlock(null);
+                              setPersonalDropPreview(null);
+                              toast.success(`Moved ${draggedPersonalBlock.label} to ${day} ${formatHour(startHour)}`);
+                            }}
                           >
                             {Array.from({ length: 15 }, (_, index) => (
                               <div
@@ -1295,7 +1545,7 @@ export function Dashboard() {
                               const blockStyle: CSSProperties = {
                                 top: `${top}px`,
                                 height: `${blockHeight}px`,
-                                minHeight: '38px',
+                                minHeight: `${MIN_EVENT_HEIGHT}px`,
                                 left: `${ev.lane * width}%`,
                                 width: `${width}%`,
                                 zIndex: hoveredCourseCode === ev.course?.code ? 20 : 2
@@ -1308,42 +1558,52 @@ export function Dashboard() {
                                 return (
                                   <div
                                     key={ev.key}
-                                    title={`${ev.label}, ${ev.startStr} - ${ev.endStr}, ${ev.personalBlock?.category} (You entered)`}
-                                    className={`group absolute box-border overflow-hidden rounded-lg border border-dashed text-[#18181B] shadow-xs ${
-                                      overlapsAcademic ? 'pointer-events-none flex items-center gap-1 px-1 bg-[#F4F1EA]/95' : 'p-1.5 bg-[#F4F1EA]'
-                                    } ${ev.stagedOverlap ? 'border-amber-600' : 'border-[#71717A]'}`}
+                                    title={`${ev.label}, ${ev.startStr} - ${ev.endStr} · Drag to move or click to edit`}
+                                    className={`group absolute box-border cursor-grab overflow-hidden rounded-lg border border-dashed bg-[#F4F1EA] text-[#18181B] shadow-xs outline-none transition-[transform,box-shadow] hover:shadow-md active:scale-[1.02] active:cursor-grabbing focus-within:ring-2 focus-within:ring-[#6c4cff] motion-reduce:transform-none motion-reduce:transition-none ${
+                                      draggedPersonalBlock?.id === ev.personalBlock?.id ? 'cursor-grabbing shadow-md' : ''
+                                    } ${overlapsAcademic || ev.stagedOverlap ? 'border-amber-600' : 'border-[#71717A]'}`}
                                     style={{
                                       ...blockStyle,
-                                      left: 0,
-                                      width: '100%',
-                                      ...(overlapsAcademic ? { height: '24px', minHeight: '24px', zIndex: 10 } : {}),
                                       backgroundImage: 'repeating-linear-gradient(135deg, transparent, transparent 6px, rgba(113,113,122,0.08) 6px, rgba(113,113,122,0.08) 8px)'
                                     }}
                                   >
                                     <button
                                       type="button"
-                                      aria-label={`Disable ${ev.label}, ${ev.startStr} to ${ev.endStr}`}
-                                      onClick={() => setPersonalCommitments(current => current.map(commitment =>
-                                        commitment.id === ev.personalBlock?.commitmentId ? { ...commitment, enabled: false } : commitment
-                                      ))}
-                                      className={`rounded bg-white/90 p-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#18181B] ${
-                                        overlapsAcademic ? 'pointer-events-auto order-last shrink-0' : 'absolute right-0 top-0 opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100'
-                                      }`}
+                                      draggable
+                                      aria-label={`Move or edit ${ev.label} on ${day}, ${ev.startStr} to ${ev.endStr}${overlapsAcademic ? ', overlaps a course' : ''}`}
+                                      onDragStart={event => {
+                                        if (!ev.personalBlock) return;
+                                        event.stopPropagation();
+                                        event.dataTransfer.setData('text/plain', ev.personalBlock.id);
+                                        event.dataTransfer.effectAllowed = 'move';
+                                        setPersonalDragOffset(Math.max(0, Math.min(
+                                          ev.personalBlock.endHour - ev.personalBlock.startHour,
+                                          (event.clientY - event.currentTarget.getBoundingClientRect().top) / PIXELS_PER_HOUR
+                                        )));
+                                        setDraggedPersonalBlock(ev.personalBlock);
+                                      }}
+                                      onDragEnd={() => { setDraggedPersonalBlock(null); setPersonalDropPreview(null); setPersonalDragOffset(0); }}
+                                      onClick={() => {
+                                        const commitment = personalCommitments.find(item => item.id === ev.personalBlock?.commitmentId);
+                                        if (commitment) editCommitment(commitment, day);
+                                      }}
+                                      className="block h-full w-full cursor-inherit overflow-hidden p-1.5 pr-4 text-left outline-none"
+                                    >
+                                      <span className="block truncate text-[10px] font-bold leading-tight">{ev.label}</span>
+                                      <span className="block text-[10px] leading-tight">{ev.startStr} - {ev.endStr}</span>
+                                      {overlapsAcademic
+                                        ? <span className="block text-[9px] font-semibold leading-tight text-amber-800">Overlap</span>
+                                        : <span className="block text-[9px] leading-tight">{ev.personalBlock?.category} · You entered</span>}
+                                    </button>
+                                    <button
+                                      type="button"
+                                      aria-label={`Remove ${ev.label} on ${day}`}
+                                      onClick={event => { event.stopPropagation(); if (ev.personalBlock) changePersonalDay(ev.personalBlock); }}
+                                      onKeyDown={event => event.stopPropagation()}
+                                      className="absolute right-0 top-0 rounded bg-white/90 p-0.5 opacity-100 transition-opacity focus-visible:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#18181B] sm:opacity-0 group-hover:opacity-100 motion-reduce:transition-none"
                                     >
                                       <X className="h-3 w-3" aria-hidden="true" />
                                     </button>
-                                    {overlapsAcademic ? (
-                                      <>
-                                        <span className="shrink-0 rounded bg-amber-100 px-1 text-[9px] font-semibold text-amber-900">Overlap</span>
-                                        <span className="min-w-0 flex-1 truncate text-[10px] font-bold">{ev.label}</span>
-                                      </>
-                                    ) : (
-                                      <>
-                                        <span className="block text-[10px] font-bold leading-tight">{ev.label}</span>
-                                        <p className="text-[10px] leading-tight">{ev.startStr} - {ev.endStr}</p>
-                                        <p className="text-[9px] leading-tight">{ev.personalBlock?.category} · You entered</p>
-                                      </>
-                                    )}
                                   </div>
                                 );
                               }
@@ -1361,11 +1621,20 @@ export function Dashboard() {
                               return (
                                 <div
                                   key={ev.key}
+                                  draggable={isStaged}
+                                  onDragStart={event => {
+                                    if (!isStaged) return;
+                                    event.stopPropagation();
+                                    event.dataTransfer.setData('text/plain', ev.course!.code);
+                                    event.dataTransfer.effectAllowed = 'move';
+                                    setDraggedStagedCode(ev.course!.code);
+                                  }}
+                                  onDragEnd={() => setDraggedStagedCode(null)}
                                   role="button"
                                   tabIndex={0}
-                                  aria-pressed={isMarkedForDrop}
+                                  aria-pressed={isStaged ? undefined : isMarkedForDrop}
                                   aria-label={`${ev.course.code} ${ev.course.title}, ${ev.section} ${ev.meetingType}, ${ev.startStr} to ${ev.endStr}. ${
-                                    isMarkedForDrop ? 'Marked for drop. Press to unmark.' : 'Press to mark for drop.'
+                                    isStaged ? 'Staged course. Drag to remove or use the remove button.' : isMarkedForDrop ? 'Marked for drop. Press to unmark.' : 'Press to mark for drop.'
                                   }`}
                                   onClick={() => !isStaged && handleSelectSwapOut(ev.course!.code)}
                                   onMouseEnter={() => setHoveredCourseCode(ev.course!.code)}
@@ -1378,7 +1647,7 @@ export function Dashboard() {
                                     }
                                   }}
                                   title={`${ev.course.title} · ${ev.section} ${ev.meetingType} · CRN ${ev.meetingCrn} · ${ev.startStr}–${ev.endStr}${hasClash ? ` · Overlaps ${ev.clashes.join(', ')}` : ''}`}
-                                  className={`absolute box-border flex h-full cursor-pointer flex-col justify-between overflow-hidden rounded border border-black/10 p-1.5 text-left shadow-xs outline-none transition-all focus-visible:ring-2 focus-visible:ring-[#6c4cff] ${cardClasses} ${
+                                  className={`absolute box-border flex h-full ${isStaged ? `cursor-grab hover:shadow-md active:scale-[1.02] active:cursor-grabbing ${draggedStagedCode === ev.course.code ? 'cursor-grabbing shadow-md' : ''}` : 'cursor-pointer'} flex-col justify-between overflow-hidden rounded border border-black/10 p-1.5 text-left shadow-xs outline-none transition-all focus-visible:ring-2 focus-visible:ring-[#6c4cff] motion-reduce:transform-none motion-reduce:transition-none ${cardClasses} ${
                                     hoveredCourseCode === ev.course.code ? 'ring-2 ring-[#6c4cff]/50' : ''
                                   }`}
                                   style={blockStyle}
@@ -1407,7 +1676,7 @@ export function Dashboard() {
                                         {isStaged && (
                                           <button
                                             type="button"
-                                            onClick={event => { event.stopPropagation(); setSelectedReplacement(null); }}
+                                            onClick={event => { event.stopPropagation(); setSelectedReplacements(current => current.filter(code => code !== ev.course!.code)); }}
                                             onKeyDown={event => event.stopPropagation()}
                                             aria-label={`Remove staged ${ev.course.code}`}
                                             className="font-mono text-[10px] font-semibold text-muted-foreground hover:text-red-600"
@@ -1443,7 +1712,7 @@ export function Dashboard() {
                                           {isStaged && (
                                             <button
                                               type="button"
-                                              onClick={event => { event.stopPropagation(); setSelectedReplacement(null); }}
+                                              onClick={event => { event.stopPropagation(); setSelectedReplacements(current => current.filter(code => code !== ev.course!.code)); }}
                                               onKeyDown={event => event.stopPropagation()}
                                               aria-label={`Remove staged ${ev.course.code}`}
                                               className="font-mono text-[10px] font-semibold text-muted-foreground hover:text-red-600"
@@ -1469,11 +1738,23 @@ export function Dashboard() {
                               );
                             })}
 
+                            {draggedPersonalBlock && personalDropPreview?.day === day && (
+                              <div
+                                aria-hidden="true"
+                                className="pointer-events-none absolute inset-x-0 z-30 rounded-lg border-2 border-dashed border-[#6c4cff] bg-[#ece9ff]/80 p-1 text-[10px] font-semibold"
+                                style={{
+                                  top: `${(personalDropPreview.startHour - 8) * PIXELS_PER_HOUR}px`,
+                                  height: `${(draggedPersonalBlock.endHour - draggedPersonalBlock.startHour) * PIXELS_PER_HOUR}px`
+                                }}
+                              >
+                                {formatHour(personalDropPreview.startHour)} – {formatHour(personalDropPreview.startHour + draggedPersonalBlock.endHour - draggedPersonalBlock.startHour)}
+                              </div>
+                            )}
                             {dragPreviewByDay[day].map(({ meeting, reason, warnings }) => (
                               <div
                                 key={`drag-${draggedCourseCode}-${meeting.crn}`}
                                 aria-label={reason
-                                  ? `Clash: ${reason}`
+                                  ? `Warning: ${reason}`
                                   : warnings.length
                                     ? `Personal time overlap: ${warnings.join(' ')}`
                                   : `Drop to Stage ${draggedCourseCode} ${meeting.section}`}
@@ -1493,7 +1774,7 @@ export function Dashboard() {
                                 }}
                               >
                                 {reason
-                                  ? `Clash · ${reason}`
+                                  ? `Warning · ${reason}`
                                   : warnings.length
                                     ? `Personal time overlap · ${warnings.join(' ')}`
                                   : `Drop to Stage · ${draggedCourseCode} (${meeting.section})`}
@@ -1612,9 +1893,10 @@ export function Dashboard() {
                         </button>
                       </div>
                     ) : filteredCatalogue.map(course => {
-                      const validRes = validateCourse(course, enrolled, swapOutId, false, selectedSections);
+                      const validRes = validateDraftCourse(course);
                       const personalOverlaps = getPersonalOverlaps(course);
-                      const isStaged = selectedReplacement === course.code;
+                      const isStaged = selectedReplacements.includes(course.code);
+                      const creditReason = getStageCreditReason(course);
 
                       return (
                         <div
@@ -1634,7 +1916,6 @@ export function Dashboard() {
                         >
                           <div className="flex items-center justify-between">
                             <span className="flex items-center gap-1 font-mono text-xs font-bold text-[#171717]">
-                              <GripVertical className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
                               {course.code}
                             </span>
                             <span className={`font-mono text-[11px] px-1.5 py-0.5 rounded ${
@@ -1666,6 +1947,9 @@ export function Dashboard() {
                               {personalOverlaps.map(block => <li key={block.id}>Personal time overlap: {personalOverlapMessage(block)}</li>)}
                             </ul>
                           )}
+                          {creditReason && (
+                            <p id={`credit-limit-${course.code}`} className="mt-2 text-[11px] font-medium text-red-600">{creditReason}</p>
+                          )}
 
                           <div className="flex items-center justify-between mt-3 pt-2 border-t border-black/5">
                             <button
@@ -1679,7 +1963,7 @@ export function Dashboard() {
                               <Button
                                 size="sm"
                                 variant="destructive"
-                                onClick={() => setSelectedReplacement(null)}
+                                onClick={() => setSelectedReplacements(current => current.filter(code => code !== course.code))}
                                 className="h-7 text-[11px] px-2.5"
                               >
                                 Unstage Preview
@@ -1687,6 +1971,8 @@ export function Dashboard() {
                             ) : (
                               <Button
                                 size="sm"
+                                disabled={Boolean(creditReason)}
+                                aria-describedby={creditReason ? `credit-limit-${course.code}` : undefined}
                                 onClick={() => handleStageCourse(course.code)}
                                 className="h-7 text-[11px] px-2.5 bg-[#171717] text-white hover:bg-[#6c4cff]"
                               >
@@ -1705,7 +1991,7 @@ export function Dashboard() {
 
           {/* TAB 2: COURSE INSPECTOR & WORKLOAD DIAGNOSTICS (EXACT ORIGINAL HCI FEATURES IN NEW SAAS STYLE) */}
           {activeTab === 'inspector' && (
-            <div className="max-w-5xl mx-auto space-y-6">
+            <div className="max-w-5xl mx-auto space-y-6 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-1 motion-safe:duration-200 motion-safe:ease-out">
               {/* Header with Breadcrumb and Dropdown */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-black/10 pb-5">
                 <div>
@@ -1724,7 +2010,7 @@ export function Dashboard() {
                     Course Inspector &amp; Workload Diagnostics
                   </h1>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    Inspect syllabus workload splits, assessment risks, and verified peer reflections.
+                    Inspect syllabus workload splits, assessment risks, and sample peer reflections.
                   </p>
                 </div>
 
@@ -2248,7 +2534,7 @@ export function Dashboard() {
                         >
                           Currently Enrolled
                         </Button>
-                      ) : selectedReplacement === inspectorCourse.code ? (
+                      ) : selectedReplacements.includes(inspectorCourse.code) ? (
                         <Button
                           onClick={() => changeTab('rehearsal')}
                           className="w-full bg-[#171717] text-white hover:bg-[#6c4cff] text-xs h-10 font-semibold"
@@ -2256,15 +2542,21 @@ export function Dashboard() {
                           Already Staged (View Timetable &rarr;)
                         </Button>
                       ) : (
-                        <Button
-                          onClick={() => {
-                            setSelectedReplacement(inspectorCourse.code);
-                            changeTab('rehearsal');
-                          }}
-                          className="w-full bg-[#171717] text-white hover:bg-[#6c4cff] text-xs h-10 font-semibold"
-                        >
-                          Stage {inspectorCourse.code} in Weekly Timetable &rarr;
-                        </Button>
+                        <>
+                          {getStageCreditReason(inspectorCourse) && (
+                            <p id="inspector-credit-limit" className="mb-2 text-xs font-medium text-red-600">{getStageCreditReason(inspectorCourse)}</p>
+                          )}
+                          <Button
+                            disabled={Boolean(getStageCreditReason(inspectorCourse))}
+                            aria-describedby={getStageCreditReason(inspectorCourse) ? 'inspector-credit-limit' : undefined}
+                            onClick={() => {
+                              if (handleStageCourse(inspectorCourse.code)) changeTab('rehearsal');
+                            }}
+                            className="w-full bg-[#171717] text-white hover:bg-[#6c4cff] text-xs h-10 font-semibold"
+                          >
+                            Stage {inspectorCourse.code} in Weekly Timetable &rarr;
+                          </Button>
+                        </>
                       )}
                     </div>
                   </div>
@@ -2277,14 +2569,14 @@ export function Dashboard() {
 
           {/* TAB 3: CITYU BLOGS */}
           {activeTab === 'blogs' && (
-            <div className="mx-auto max-w-6xl space-y-6">
+            <div className="mx-auto max-w-6xl space-y-6 motion-safe:animate-in motion-safe:fade-in motion-safe:duration-200 motion-safe:ease-out">
               {!openPostId ? (
                 <>
                   <div className="flex flex-col gap-4 border-b border-black/10 pb-5 sm:flex-row sm:items-end sm:justify-between">
                     <div>
                       <h1 className="text-2xl font-bold tracking-tight md:text-3xl">CityU Course Experience Blogs</h1>
                       <p className="mt-1 text-xs text-muted-foreground">
-                        Context-verified peer reflections. Zero fabricated star ratings or difficulty scores.
+                        Example posts and verification labels are simulated, not university checks. Shared posts stay in this session.
                       </p>
                     </div>
                     <Button
@@ -2317,38 +2609,56 @@ export function Dashboard() {
                     )}
                   </div>
 
-                  <div className="flex flex-wrap gap-1.5 text-[11px] font-mono">
-                    {([
-                      ['all', 'All'],
-                      ['stem', 'STEM'],
-                      ['ge', 'GE'],
-                      ['workload', 'Workload'],
-                      ['transfer', 'Direct-Entry']
-                    ] as const).map(([value, label]) => (
-                      <button
-                        key={value}
-                        type="button"
-                        onClick={() => setBlogFilter(value)}
-                        aria-pressed={blogFilter === value}
-                        className={`rounded px-2.5 py-1.5 font-semibold transition ${
-                          blogFilter === value ? 'bg-[#171717] text-white' : 'bg-[#f5f4ef] text-muted-foreground hover:bg-[#eeece6]'
-                        }`}
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex flex-wrap gap-1.5 text-[11px] font-mono">
+                      {([
+                        ['all', 'All'],
+                        ['stem', 'STEM'],
+                        ['ge', 'GE'],
+                        ['workload', 'Workload'],
+                        ['transfer', 'Direct-Entry']
+                      ] as const).map(([value, label]) => (
+                        <button
+                          key={value}
+                          type="button"
+                          onClick={() => setBlogFilter(value)}
+                          aria-pressed={blogFilter === value}
+                          className={`rounded px-2.5 py-1.5 font-semibold transition ${
+                            blogFilter === value ? 'bg-[#171717] text-white' : 'bg-[#f5f4ef] text-muted-foreground hover:bg-[#eeece6]'
+                          }`}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                    <label className="flex items-center gap-2 text-xs font-semibold text-[#52525B]">
+                      <span>Verification</span>
+                      <select
+                        value={blogVerificationFilter}
+                        onChange={event => {
+                          const value = event.target.value;
+                          if (value === 'all' || value === 'verified' || value === 'pending') setBlogVerificationFilter(value);
+                        }}
+                        className="h-9 rounded-lg border border-[#E4E1DA] bg-white px-2.5 text-xs font-medium text-[#18181B] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#18181B]"
                       >
-                        {label}
-                      </button>
-                    ))}
+                        <option value="all">All statuses</option>
+                        <option value="verified">Verified (demo)</option>
+                        <option value="pending">Pending (demo)</option>
+                      </select>
+                    </label>
                   </div>
 
                   {filteredBlogPosts.length === 0 ? (
                     <div className="space-y-2 rounded-xl border border-dashed border-[#E4E1DA] bg-white p-8 text-center" role="status">
                       <p className="text-sm text-muted-foreground">
-                        No posts match "<span className="font-semibold text-foreground">{blogSearchQuery}</span>"
+                        {blogSearchQuery.trim() ? <>No posts match "<span className="font-semibold text-foreground">{blogSearchQuery}</span>" with these filters.</> : 'No posts match these filters.'}
                       </p>
                       <button
                         type="button"
                         onClick={() => {
                           setBlogSearchQuery('');
                           setBlogFilter('all');
+                          setBlogVerificationFilter('all');
                         }}
                         className="text-xs font-semibold text-[#4F46E5] hover:underline"
                       >
@@ -2369,7 +2679,7 @@ export function Dashboard() {
                               handleOpenPost(post.id);
                             }
                           }}
-                          className="group cursor-pointer space-y-3 rounded-2xl border border-black/10 bg-white p-5 text-left shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-[#6c4cff]/50 hover:shadow-md active:translate-y-0"
+                          className="group cursor-pointer space-y-3 rounded-2xl border border-black/10 bg-white p-5 text-left shadow-sm transition-[transform,border-color,box-shadow] duration-200 motion-safe:hover:-translate-y-1 hover:border-[#6c4cff]/50 hover:shadow-md motion-safe:active:translate-y-0 motion-reduce:transition-none"
                         >
                           <div className="flex items-start justify-between gap-3">
                             <div className="flex min-w-0 items-center gap-3">
@@ -2404,6 +2714,7 @@ export function Dashboard() {
                                     event.stopPropagation();
                                     setBlogSearchQuery(post.courseCode || '');
                                     setBlogFilter('all');
+                                    setBlogVerificationFilter('all');
                                   }}
                                   onKeyDown={event => event.stopPropagation()}
                                   aria-label={`Filter posts for ${post.courseCode}`}
@@ -2420,7 +2731,7 @@ export function Dashboard() {
                               ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
                               : 'border-amber-200 bg-amber-50 text-amber-800'
                           }`}>
-                            {post.verificationStatus === 'verified' ? 'Verified by University Officer' : 'Pending University Verification'}
+                            {post.verificationStatus === 'verified' ? 'Verified (demo)' : 'Pending (demo)'}
                           </span>
                           <h3 className="text-base font-bold leading-snug">{post.title}</h3>
                           <p className="text-xs text-muted-foreground">{post.subtitle}</p>
@@ -2438,7 +2749,7 @@ export function Dashboard() {
                                 toggleHelpfulPost(post.id);
                               }}
                               onKeyDown={event => event.stopPropagation()}
-                              className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-all duration-200 active:scale-95 ${
+                              className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-[transform,background-color,border-color,color] duration-200 motion-safe:active:scale-95 motion-reduce:transition-none ${
                                 helpfulPostIds.includes(post.id)
                                   ? 'border-[#6c4cff] bg-[#ece9ff] text-[#34266f]'
                                   : 'border-black/10 bg-white text-muted-foreground hover:border-[#6c4cff]/50 hover:text-[#34266f]'
@@ -2456,7 +2767,7 @@ export function Dashboard() {
                               className="inline-flex items-center gap-1 pt-1 text-xs font-semibold text-[#4F46E5] hover:underline"
                             >
                               Read Full Post
-                              <ArrowRight className="h-3.5 w-3.5 transition-transform duration-200 group-hover:translate-x-1.5" aria-hidden="true" />
+                              <ArrowRight className="h-3.5 w-3.5 transition-transform duration-200 motion-safe:group-hover:translate-x-1.5 motion-reduce:transition-none" aria-hidden="true" />
                             </button>
                           </div>
                         </article>
@@ -2487,7 +2798,7 @@ export function Dashboard() {
                               ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
                               : 'border-amber-200 bg-amber-50 text-amber-800'
                           }`}>
-                            {activeBlogPost.verificationStatus === 'verified' ? 'Verified by University Officer' : 'Pending University Verification'}
+                            {activeBlogPost.verificationStatus === 'verified' ? 'Verified (demo)' : 'Pending (demo)'}
                           </span>
                         </div>
                       </header>
@@ -2553,7 +2864,7 @@ export function Dashboard() {
                           type="button"
                           aria-pressed={helpfulPostIds.includes(activeBlogPost.id)}
                           onClick={() => toggleHelpfulPost(activeBlogPost.id)}
-                          className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition-all duration-200 active:scale-95 ${
+                          className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition-[transform,background-color,border-color,color] duration-200 motion-safe:active:scale-95 motion-reduce:transition-none ${
                             helpfulPostIds.includes(activeBlogPost.id)
                               ? 'border-[#6c4cff] bg-[#ece9ff] text-[#34266f]'
                               : 'border-black/10 bg-white text-muted-foreground hover:border-[#6c4cff]/50 hover:text-[#34266f]'
@@ -2584,36 +2895,42 @@ export function Dashboard() {
                       <section className="space-y-2 rounded-2xl border border-[#E4E1DA] bg-[#f8f7f3] p-4 text-xs leading-relaxed text-muted-foreground">
                         <h2 className="font-bold text-[#171717]">Verification &amp; provenance</h2>
                         <p>
-                          Verified posts have been checked by a University Officer. Pending posts remain readable while officer review is queued.
+                          Verification labels are simulated for this prototype. Posts are not submitted for university review.
                         </p>
                       </section>
 
-                      {activeBlogCourseCode && masterSchedule.some(course => course.code === activeBlogCourseCode) && (
+                      {activeBlogCourse && (
                         <section className="space-y-3 rounded-2xl border border-black/10 bg-white p-5 shadow-sm">
                           <h2 className="text-sm font-bold">Course Actions</h2>
                           <Button
                             type="button"
                             variant="outline"
-                            onClick={() => handleOpenInspector(activeBlogCourseCode)}
+                            onClick={() => handleOpenInspector(activeBlogCourse.code)}
                             className="h-auto min-h-9 w-full whitespace-normal text-left text-xs"
                           >
-                            Inspect {activeBlogCourseCode} Diagnostics →
+                            Inspect {activeBlogCourse.code} Diagnostics →
                           </Button>
-                          {enrolled.includes(activeBlogCourseCode) ? (
+                          {enrolled.includes(activeBlogCourse.code) ? (
                             <Button type="button" disabled className="w-full text-xs">
                               Currently Enrolled
                             </Button>
                           ) : (
-                            <Button
-                              type="button"
-                              onClick={() => {
-                                setSelectedReplacement(activeBlogCourseCode);
-                                changeTab('rehearsal');
-                              }}
-                              className="h-auto min-h-9 w-full whitespace-normal bg-[#171717] text-left text-xs text-white hover:bg-[#6c4cff]"
-                            >
-                              Stage {activeBlogCourseCode} in Timetable →
-                            </Button>
+                            <>
+                              {getStageCreditReason(activeBlogCourse) && (
+                                <p id="blog-credit-limit" className="text-xs font-medium text-red-600">{getStageCreditReason(activeBlogCourse)}</p>
+                              )}
+                              <Button
+                                type="button"
+                                disabled={Boolean(getStageCreditReason(activeBlogCourse))}
+                                aria-describedby={getStageCreditReason(activeBlogCourse) ? 'blog-credit-limit' : undefined}
+                                onClick={() => {
+                                  if (handleStageCourse(activeBlogCourse.code)) changeTab('rehearsal');
+                                }}
+                                className="h-auto min-h-9 w-full whitespace-normal bg-[#171717] text-left text-xs text-white hover:bg-[#6c4cff]"
+                              >
+                                {selectedReplacements.includes(activeBlogCourse.code) ? `View staged ${activeBlogCourse.code}` : `Stage ${activeBlogCourse.code} in Timetable`} →
+                              </Button>
+                            </>
                           )}
                         </section>
                       )}
@@ -2644,18 +2961,18 @@ export function Dashboard() {
                 </>
               ) : null}
 
-              {shareExperienceOpen && (
-                <div
+              <AnimatedOverlay
+                  open={shareExperienceOpen}
                   className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
                   onClick={event => {
                     if (event.target === event.currentTarget) setShareExperienceOpen(false);
                   }}
                 >
-                  <div role="dialog" aria-modal="true" aria-labelledby="share-experience-title" className="max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-2xl border border-black/10 bg-white p-6 shadow-2xl">
+                  <div ref={shareExperienceRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="share-experience-title" className="max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-2xl border border-black/10 bg-white p-6 shadow-2xl outline-none motion-safe:animate-in motion-safe:fade-in motion-safe:zoom-in-95 motion-safe:duration-200">
                     <div className="mb-5 flex items-start justify-between gap-4">
                       <div>
                         <h2 id="share-experience-title" className="text-lg font-bold">Share Course Experience</h2>
-                        <p className="mt-1 text-xs text-muted-foreground">No login or ratings required. New posts are marked pending review.</p>
+                        <p className="mt-1 text-xs text-muted-foreground">No login or ratings required. Posts stay in this session and are not submitted for review.</p>
                       </div>
                       <button type="button" aria-label="Close share form" onClick={() => setShareExperienceOpen(false)} className="rounded p-1 text-muted-foreground hover:bg-black/5 hover:text-foreground">
                         <X className="h-4 w-4" aria-hidden="true" />
@@ -2689,7 +3006,7 @@ export function Dashboard() {
                           verificationStatus: 'pending',
                           commentCount: 0,
                           authorMeta,
-                          aboutAuthor: 'CityU undergraduate · Self-submitted experience pending University Officer review.',
+                          aboutAuthor: 'CityU undergraduate · Self-submitted experience in this prototype.',
                           summary: (body[0] || '').slice(0, 220),
                           body,
                           comments: [],
@@ -2699,6 +3016,7 @@ export function Dashboard() {
                         setPosts(current => [newPost, ...current]);
                         setBlogSearchQuery('');
                         setBlogFilter('all');
+                        setBlogVerificationFilter('all');
                         setShareExperienceOpen(false);
                         setShareCourseCode('');
                         setShareTitle('');
@@ -2751,13 +3069,12 @@ export function Dashboard() {
                           Cancel
                         </Button>
                         <Button type="submit" className="bg-[#171717] text-xs text-white hover:bg-[#6c4cff]">
-                          Share for Review
+                          Share Post
                         </Button>
                       </div>
                     </form>
                   </div>
-                </div>
-              )}
+              </AnimatedOverlay>
             </div>
           )}
         </main>
@@ -2769,15 +3086,16 @@ export function Dashboard() {
           course={inspectorCourse}
           open={syllabusDrawerOpen && activeTab === 'inspector'}
           isEnrolled={enrolled.includes(inspectorCourse.code)}
-          isStaged={selectedReplacement === inspectorCourse.code}
+          isStaged={selectedReplacements.includes(inspectorCourse.code)}
+          stageBlockReason={getStageCreditReason(inspectorCourse)}
           onClose={() => setSyllabusDrawerOpen(false)}
           onSelectCourse={(code) => { keepDrawerOpenRef.current = code !== inspectorCourseCode; setInspectorCourseCode(code); }}
           onStage={handleStageCourse}
         />
       )}
 
-      {showCommitmentManager && (
-        <div
+      <AnimatedOverlay
+          open={showCommitmentManager}
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
           onClick={event => {
             if (event.target === event.currentTarget) setShowCommitmentManager(false);
@@ -2789,7 +3107,7 @@ export function Dashboard() {
             aria-modal="true"
             aria-labelledby="commitment-manager-title"
             tabIndex={-1}
-            className="max-h-[90vh] max-w-lg w-full overflow-y-auto rounded-2xl border border-[#E4E1DA] bg-white p-6 shadow-xl outline-none"
+            className="max-h-[90vh] max-w-lg w-full overflow-y-auto rounded-2xl border border-[#E4E1DA] bg-white p-6 shadow-xl outline-none motion-safe:animate-in motion-safe:fade-in motion-safe:zoom-in-95 motion-safe:duration-200"
           >
             <div className="flex items-start justify-between gap-4">
               <div>
@@ -2845,6 +3163,14 @@ export function Dashboard() {
                   </div>
                   <button
                     type="button"
+                    aria-label={`Edit ${commitment.label} series`}
+                    onClick={() => editCommitment(commitment)}
+                    className="rounded p-1 text-[#52525B] hover:bg-[#F7F5F0] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#18181B]"
+                  >
+                    <Pencil className="h-4 w-4" aria-hidden="true" />
+                  </button>
+                  <button
+                    type="button"
                     aria-label={`Delete ${commitment.label}`}
                     onClick={() => setPersonalCommitments(current => current.filter(item => item.id !== commitment.id))}
                     className="rounded p-1 text-[#52525B] transition-colors hover:bg-[#F7F5F0] hover:text-[#18181B] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#18181B]"
@@ -2860,24 +3186,41 @@ export function Dashboard() {
               onSubmit={event => {
                 event.preventDefault();
                 const label = newLabel.trim();
-                if (!label || newDays.length === 0) return;
-                setPersonalCommitments(current => [...current, {
-                  id: crypto.randomUUID(),
-                  label,
-                  category: newCategory,
-                  days: [...newDays],
-                  startHour: newStartHour,
-                  endHour: newEndHour,
-                  enabled: true
-                }]);
+                if (!label || newDays.length === 0 || newEndHour <= newStartHour) {
+                  toast.error('Enter a title, day, and valid start and end time.');
+                  return;
+                }
+                const editingCommitment = personalCommitments.find(item => item.id === editingCommitmentId);
+                if (editingCommitmentDay && newDays[0] !== editingCommitmentDay && editingCommitment?.days.includes(newDays[0])) {
+                  toast.error(`This commitment already has a ${newDays[0]} block. Edit or remove it first.`);
+                  return;
+                }
+                setPersonalCommitments(current => {
+                  const edited = current.find(item => item.id === editingCommitmentId);
+                  const updated: PersonalCommitment = {
+                    id: editingCommitmentId && !editingCommitmentDay ? editingCommitmentId : crypto.randomUUID(),
+                    label, category: newCategory, days: [...newDays],
+                    startHour: newStartHour, endHour: newEndHour, enabled: edited?.enabled ?? true
+                  };
+                  if (!edited) return [...current, updated];
+                  if (!editingCommitmentDay) return current.map(item => item.id === edited.id ? updated : item);
+                  return [...current.flatMap(item => {
+                    if (item.id !== edited.id) return [item];
+                    const days = item.days.filter(day => day !== editingCommitmentDay);
+                    return days.length ? [{ ...item, days }] : [];
+                  }), updated];
+                });
                 setBlockPersonalTime(true);
                 setNewLabel('');
+                setEditingCommitmentId(null);
+                setEditingCommitmentDay(null);
               }}
             >
-              <h3 className="text-sm font-semibold">Add a commitment</h3>
+              <h3 className="text-sm font-semibold">{editingCommitmentId ? editingCommitmentDay ? `Edit ${editingCommitmentDay} block` : 'Edit commitment series' : 'Add a commitment'}</h3>
               <label className="block space-y-1 text-xs font-semibold">
                 <span>Commitment title</span>
                 <input
+                  ref={commitmentTitleRef}
                   value={newLabel}
                   onChange={event => setNewLabel(event.target.value)}
                   placeholder="e.g., Industrial placement, Hackathon prep"
@@ -2908,7 +3251,7 @@ export function Dashboard() {
                       key={day}
                       type="button"
                       aria-pressed={newDays.includes(day)}
-                      onClick={() => setNewDays(current => current.includes(day) ? current.filter(item => item !== day) : COMMITMENT_DAYS.filter(item => item === day || current.includes(item)))}
+                      onClick={() => setNewDays(current => editingCommitmentDay ? [day] : current.includes(day) ? current.filter(item => item !== day) : COMMITMENT_DAYS.filter(item => item === day || current.includes(item)))}
                       className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#18181B] ${
                         newDays.includes(day) ? 'border-[#18181B] bg-[#18181B] text-[#D9F99D]' : 'border-[#E4E1DA] bg-white text-[#18181B] hover:bg-[#F7F5F0]'
                       }`}
@@ -2926,11 +3269,11 @@ export function Dashboard() {
                     onChange={event => {
                       const hour = Number(event.target.value);
                       setNewStartHour(hour);
-                      setNewEndHour(current => Math.max(hour + 1, current));
+                      setNewEndHour(current => Math.max(hour + 0.5, current));
                     }}
                     className="h-10 w-full rounded-lg border border-[#E4E1DA] bg-white px-3 font-normal focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#18181B]"
                   >
-                    {Array.from({ length: 12 }, (_, index) => index + 9).map(hour => <option key={hour} value={hour}>{formatHour(hour)}</option>)}
+                    {Array.from({ length: 30 }, (_, index) => 8 + index / 2).map(hour => <option key={hour} value={hour}>{formatHour(hour)}</option>)}
                   </select>
                 </label>
                 <label className="block space-y-1 text-xs font-semibold">
@@ -2940,7 +3283,7 @@ export function Dashboard() {
                     onChange={event => setNewEndHour(Number(event.target.value))}
                     className="h-10 w-full rounded-lg border border-[#E4E1DA] bg-white px-3 font-normal focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#18181B]"
                   >
-                    {Array.from({ length: 21 - newStartHour }, (_, index) => newStartHour + 1 + index).map(hour => <option key={hour} value={hour}>{formatHour(hour)}</option>)}
+                    {Array.from({ length: (23 - newStartHour) * 2 }, (_, index) => newStartHour + 0.5 + index / 2).map(hour => <option key={hour} value={hour}>{formatHour(hour)}</option>)}
                   </select>
                 </label>
               </div>
@@ -2949,15 +3292,19 @@ export function Dashboard() {
                 disabled={!newLabel.trim() || newDays.length === 0}
                 className="w-full rounded-lg bg-[#18181B] px-4 py-2.5 text-xs font-semibold text-white transition-colors hover:bg-[#27272A] disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#18181B]"
               >
-                + Add time block
+                {editingCommitmentId ? 'Save changes' : '+ Add time block'}
               </button>
+              {editingCommitmentId && (
+                <button type="button" onClick={() => { setEditingCommitmentId(null); setEditingCommitmentDay(null); setNewLabel(''); }} className="w-full text-xs font-semibold underline">
+                  Cancel editing
+                </button>
+              )}
             </form>
           </div>
-        </div>
-      )}
+      </AnimatedOverlay>
 
-      {controlGateOpen && (
-        <div
+      <AnimatedOverlay
+          open={controlGateOpen}
           className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4"
           onClick={(e) => { if (e.target === e.currentTarget) closeControlGate(); }}
         >
@@ -2967,7 +3314,7 @@ export function Dashboard() {
             aria-modal="true"
             aria-labelledby="control-gate-title"
             tabIndex={-1}
-            className="bg-white rounded-2xl max-w-xl w-full max-h-[90vh] overflow-y-auto p-6 shadow-2xl border border-black/10 space-y-5 animate-in fade-in zoom-in-95 duration-200 outline-none"
+            className="bg-white rounded-2xl max-w-xl w-full max-h-[90vh] overflow-y-auto p-6 shadow-2xl border border-black/10 space-y-5 motion-safe:animate-in motion-safe:fade-in motion-safe:zoom-in-95 motion-safe:duration-200 outline-none"
           >
             <div className="flex items-center justify-between border-b pb-3">
               <div className="flex items-center gap-2">
@@ -3020,21 +3367,21 @@ export function Dashboard() {
               </div>
 
               <div className="pl-2 space-y-1">
-                <span className="font-mono text-[11px] uppercase font-bold text-green-600">[ADD CANDIDATE]</span>
-                {stagedCourse ? (
-                  <>
-                    <p className="font-bold text-sm">{stagedCourse.code}</p>
-                    <p className="text-muted-foreground">{stagedCourse.title}</p>
-                    <p className="font-mono text-[11px]">{canSeeCrns ? `${getCourseCrnSummary(stagedCourse)} · ` : ''}{stagedCourse.credits} CR</p>
+                <span className="font-mono text-[11px] uppercase font-bold text-green-600">[ADD CANDIDATES]</span>
+                {stagedCourses.length ? stagedCourses.map(course => (
+                  <div key={course.code} className="space-y-1">
+                    <p className="font-bold text-sm">{course.code}</p>
+                    <p className="text-muted-foreground">{course.title}</p>
+                    <p className="font-mono text-[11px]">{canSeeCrns ? `${getCourseCrnSummary(course)} · ` : ''}{course.credits} CR</p>
                     <div className="space-y-0.5 text-[10px] font-mono text-muted-foreground">
-                      {getResolvedMeetings(stagedCourse, selectedSections).map(meeting => (
+                      {getResolvedMeetings(course, selectedSections).map(meeting => (
                         <p key={meeting.crn}>
                           {meeting.section} {meeting.type}: {meeting.day} {meeting.start}–{meeting.end}
                         </p>
                       ))}
                     </div>
-                  </>
-                ) : (
+                  </div>
+                )) : (
                   <p className="italic text-muted-foreground">No course staged</p>
                 )}
               </div>
@@ -3063,12 +3410,12 @@ export function Dashboard() {
 
                 {(() => {
                   const steps: { key: string; checked: boolean; set: (v: boolean) => void; label: string }[] = [];
-                  if (stagedCourse) {
+                  if (stagedCourses.length) {
                     steps.push({
                       key: 'verify',
                       checked: handoffStep1,
                       set: setHandoffStep1,
-                      label: `Verified live seat availability on AIMS for ${getCourseCrnSummary(stagedCourse)}.`
+                      label: `Verified live seat availability on AIMS for ${stagedCourses.map(course => `${course.code}: ${getCourseCrnSummary(course)}`).join('; ')}.`
                     });
                   }
                   if (swapOutCourse) {
@@ -3079,12 +3426,12 @@ export function Dashboard() {
                       label: `Executed drop for ${swapOutCourse.code} on AIMS using ${getCourseCrnSummary(swapOutCourse)}.`
                     });
                   }
-                  if (stagedCourse) {
+                  if (stagedCourses.length) {
                     steps.push({
                       key: 'add',
                       checked: handoffStep3,
                       set: setHandoffStep3,
-                      label: `Executed add for ${stagedCourse.code} on AIMS using ${getCourseCrnSummary(stagedCourse)}.`
+                      label: `Executed adds on AIMS for ${stagedCourses.map(course => `${course.code}: ${getCourseCrnSummary(course)}`).join('; ')}.`
                     });
                   }
                   return steps.map((step, i) => (
@@ -3134,12 +3481,11 @@ export function Dashboard() {
                 }}
                 className="bg-[#171717] text-white hover:bg-[#6c4cff] text-xs h-9"
               >
-                {stagedCourse ? 'Confirm Swap in Simulation' : 'Confirm Drop in Simulation'}
+                {stagedCourses.length ? 'Confirm Draft in Simulation' : 'Confirm Drop in Simulation'}
               </Button>
             </div>
           </div>
-        </div>
-      )}
+      </AnimatedOverlay>
     </div>
   );
 }

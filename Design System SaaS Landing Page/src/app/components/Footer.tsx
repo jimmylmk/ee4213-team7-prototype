@@ -1,11 +1,12 @@
 import { BrandMark } from "./Header";
 import { Separator } from "./ui/separator";
+import { scrollIntoViewWithMotion } from "../utils/motion";
 
 export function Footer() {
   const scrollTo = (id: string) => (e: React.MouseEvent) => {
     e.preventDefault();
     const el = document.getElementById(id);
-    if (el) el.scrollIntoView({ behavior: "smooth" });
+    if (el) scrollIntoViewWithMotion(el);
   };
 
   return (
@@ -16,7 +17,7 @@ export function Footer() {
             <div className="flex items-center space-x-3 mb-3">
               <BrandMark />
               <div>
-                <div className="font-semibold text-sm">SafeSwap Rehearsal Sandbox</div>
+                <div className="font-semibold text-sm">CityU <span className="text-violet-600">CampuSync</span></div>
                 <div className="font-mono text-[10px] text-muted-foreground uppercase">CityU EE4213 Team #7</div>
               </div>
             </div>
