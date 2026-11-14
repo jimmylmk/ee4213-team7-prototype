@@ -1,37 +1,148 @@
 export type DayOfWeek = 'Mon' | 'Tue' | 'Wed' | 'Thu' | 'Fri' | 'Sat';
+export type GEArea = 'area1' | 'area2' | 'area3' | 'unireq';
+
+export const simulatedGEAreas: Record<string, GEArea | undefined> = {
+  GE1501: 'unireq',
+  GE1109: 'area1',
+  GE1401: 'unireq',
+  GE1907: 'area1',
+  GE2203: 'area2',
+  GE2305: 'area1',
+  GE2410: 'unireq',
+  GE1601: 'area3',
+  GE1305: 'area1',
+  GE2215: 'area2',
+  GE2101: 'area2',
+  GE1602: 'area1',
+  GE1804: 'area3',
+  GE1203: 'area1',
+  GE2108: 'area1',
+  GE1205: 'area2',
+  GE1218: 'area2',
+  GE3207: 'area2',
+  GE2336: 'area3',
+  GE2309: 'area3',
+  GE1105: 'area1',
+  GE2312: 'area3',
+  GE2129: 'area1',
+  GE2335: 'area3',
+  GE1313: 'area3',
+  GE2105: 'area1',
+  GE1229: 'area2'
+};
+
+export const SIMULATED_GRADE_POINTS = {
+  'A+': 4.3, A: 4, 'A-': 3.7,
+  'B+': 3.3, B: 3, 'B-': 2.7,
+  'C+': 2.3, C: 2, 'C-': 1.7, D: 1, F: 0
+} as const;
+
+export type SimulatedGrade = keyof typeof SIMULATED_GRADE_POINTS;
+
+export interface SimulatedCourseFeedback {
+  gradeCounts: Record<SimulatedGrade, number>;
+  instructor: string;
+  instructorRating: number;
+  ratingCount: number;
+}
+
+const exampleFeedbackSets: SimulatedCourseFeedback[] = [
+  { gradeCounts: { 'A+': 2, A: 5, 'A-': 7, 'B+': 9, B: 6, 'B-': 4, 'C+': 2, C: 1, 'C-': 0, D: 0, F: 0 }, instructor: 'Fictional instructor A', instructorRating: 4.2, ratingCount: 19 },
+  { gradeCounts: { 'A+': 1, A: 3, 'A-': 5, 'B+': 7, B: 8, 'B-': 5, 'C+': 3, C: 2, 'C-': 1, D: 1, F: 0 }, instructor: 'Fictional instructor B', instructorRating: 3.8, ratingCount: 23 },
+  { gradeCounts: { 'A+': 3, A: 6, 'A-': 8, 'B+': 9, B: 6, 'B-': 3, 'C+': 1, C: 1, 'C-': 0, D: 0, F: 0 }, instructor: 'Fictional instructor C', instructorRating: 4.5, ratingCount: 27 },
+  { gradeCounts: { 'A+': 1, A: 4, 'A-': 6, 'B+': 8, B: 7, 'B-': 4, 'C+': 3, C: 2, 'C-': 1, D: 0, F: 0 }, instructor: 'Fictional instructor D', instructorRating: 4.0, ratingCount: 20 },
+  { gradeCounts: { 'A+': 0, A: 2, 'A-': 4, 'B+': 6, B: 8, 'B-': 6, 'C+': 4, C: 3, 'C-': 2, D: 1, F: 1 }, instructor: 'Fictional instructor E', instructorRating: 3.6, ratingCount: 16 }
+];
+
+const exampleFeedbackCourses: string[][] = [
+  ['EE2000', 'GE1401', 'GE1205', 'GE2129', 'CB2100'],
+  ['CS1302', 'GE1109', 'GE2336', 'CB2201', 'AC5711'],
+  ['GE1501', 'GE1218', 'GE2105', 'CB3043'],
+  ['EE3210', 'GE2108', 'GE2335', 'GE1229'],
+  ['MA2001', 'CS4487', 'CS3402', 'FB6881P']
+];
+
+export const simulatedCourseFeedback: Record<string, SimulatedCourseFeedback | undefined> = {
+  ...Object.fromEntries(exampleFeedbackCourses.flatMap((codes, index) =>
+    codes.map(code => [code, exampleFeedbackSets[index]])
+  )),
+  GE1907: {
+    gradeCounts: { 'A+': 2, A: 5, 'A-': 7, 'B+': 8, B: 6, 'B-': 3, 'C+': 2, C: 1, 'C-': 0, D: 0, F: 0 },
+    instructor: 'Example instructor A', instructorRating: 4.3, ratingCount: 18
+  },
+  GE2101: {
+    gradeCounts: { 'A+': 1, A: 3, 'A-': 5, 'B+': 7, B: 8, 'B-': 4, 'C+': 3, C: 2, 'C-': 1, D: 0, F: 0 },
+    instructor: 'Example instructor B', instructorRating: 3.9, ratingCount: 21
+  },
+  EE4213: {
+    gradeCounts: { 'A+': 3, A: 6, 'A-': 9, 'B+': 8, B: 5, 'B-': 3, 'C+': 1, C: 1, 'C-': 0, D: 0, F: 0 },
+    instructor: 'Example instructor C', instructorRating: 4.5, ratingCount: 24
+  },
+  CS3334: {
+    gradeCounts: { 'A+': 1, A: 3, 'A-': 5, 'B+': 6, B: 8, 'B-': 5, 'C+': 4, C: 3, 'C-': 2, D: 1, F: 1 },
+    instructor: 'Example instructor D', instructorRating: 3.7, ratingCount: 26
+  },
+};
 
 export interface CourseSectionMeeting {
   section: string;
-  type: 'Lecture' | 'Tutorial' | 'Lab';
+  type: 'Lecture' | 'Seminar' | 'Tutorial' | 'Lab';
   crn: string;
   day: DayOfWeek;
   start: string;
   end: string;
   room?: string;
-  quotaAvailable: number;
-  quotaTotal: number;
+  instructor?: string;
+  restriction?: string;
+  quotaAvailable: number | null;
+  quotaTotal: number | null;
+}
+
+export interface PrimarySection {
+  section: string;
+  type: 'Lecture' | 'Seminar';
+  crn: string;
+  day: DayOfWeek | null;
+  start: string | null;
+  end: string | null;
+  room?: string;
+  instructor?: string;
+  restriction?: string;
+  quotaAvailable: number | null;
+  quotaTotal: number | null;
+}
+
+export interface SelectedSections {
+  primaryCrn?: string;
+  tutorialCrn?: string;
+  labCrn?: string;
 }
 
 export interface Course {
   crn: string;
   code: string;
   title: string;
-  day: DayOfWeek;
-  start: string;
-  end: string;
+  day: DayOfWeek | null;
+  start: string | null;
+  end: string | null;
   credits: number;
-  quotaTotal: number;
-  quotaAvailable: number;
+  quotaTotal: number | null;
+  quotaAvailable: number | null;
   requiredMajor: string | null;
   prereqs: string[];
-  category: 'stem' | 'ge';
-  examPct: number;
-  courseworkPct: number;
-  groupPct: number;
+  category: 'stem' | 'ge' | 'business';
+  examPct: number | null;
+  courseworkPct: number | null;
+  groupPct: number | null;
   isBridge: boolean;
   examDate?: string;
   syllabusPdf?: string;
   syllabusYear?: '2026/27' | '2025/26';
+  primarySections?: PrimarySection[];
+  academicUnit?: string;
+  level?: 'Undergraduate' | 'Postgraduate';
+  scheduleNote?: string;
+  prerequisiteNote?: string;
   lectureSection?: string;
   tutorialOptions?: CourseSectionMeeting[];
   labOptions?: CourseSectionMeeting[];
@@ -53,6 +164,7 @@ export interface BlogPost {
   comments: { user: string; text: string }[];
   tags: string[];
   courseCode?: string;
+  tip?: string;
   avatarUrl?: string;
   readTime?: string;
   helpfulCount?: number;
@@ -116,7 +228,7 @@ export const masterSchedule: Course[] = [
   { crn: '51003', code: 'CS1302', title: 'Introduction to Computer Science', day: 'Tue', start: '14:00', end: '16:00', credits: 3, quotaTotal: 30, quotaAvailable: 8, requiredMajor: null, prereqs: [], category: 'stem', examPct: 40, courseworkPct: 60, groupPct: 10, isBridge: false },
   { crn: '51004', code: 'GE1501', title: 'University Life & Society', day: 'Wed', start: '11:00', end: '13:00', credits: 3, quotaTotal: 30, quotaAvailable: 16, requiredMajor: null, prereqs: [], category: 'ge', examPct: 0, courseworkPct: 100, groupPct: 35, isBridge: false },
   { crn: '51002', code: 'GE1109', title: 'Global Cultures', day: 'Fri', start: '15:00', end: '18:00', credits: 3, quotaTotal: 30, quotaAvailable: 6, requiredMajor: null, prereqs: [], category: 'ge', examPct: 50, courseworkPct: 50, groupPct: 20, isBridge: false },
-  { crn: '54081', code: 'GE1401', title: 'University English', day: 'Wed', start: '14:00', end: '17:00', credits: 3, quotaTotal: 30, quotaAvailable: 4, requiredMajor: null, prereqs: [], category: 'ge', examPct: 30, courseworkPct: 70, groupPct: 25, isBridge: false },
+  { crn: '54081', code: 'GE1401', title: 'University English', day: 'Wed', start: '14:00', end: '17:00', credits: 3, quotaTotal: 30, quotaAvailable: 4, requiredMajor: null, prereqs: [], prerequisiteNote: 'English qualification or course prerequisite applies; check the syllabus.', category: 'ge', examPct: null, courseworkPct: null, groupPct: null, isBridge: false, syllabusPdf: './syllabi/GE1401.pdf', syllabusYear: '2026/27' },
   { crn: '54086', code: 'GE1907', title: 'Asian Cities & Culture', day: 'Fri', start: '10:00', end: '12:00', credits: 3, quotaTotal: 30, quotaAvailable: 11, requiredMajor: null, prereqs: [], category: 'ge', examPct: 0, courseworkPct: 100, groupPct: 15, isBridge: false },
   { crn: '54087', code: 'GE2203', title: 'Sustainability & Society', day: 'Wed', start: '14:00', end: '16:00', credits: 3, quotaTotal: 30, quotaAvailable: 3, requiredMajor: null, prereqs: [], category: 'ge', examPct: 40, courseworkPct: 60, groupPct: 30, isBridge: false },
   { crn: '54090', code: 'GE2305', title: 'Film & Media Culture', day: 'Tue', start: '18:00', end: '21:00', credits: 3, quotaTotal: 30, quotaAvailable: 6, requiredMajor: null, prereqs: [], category: 'ge', examPct: 0, courseworkPct: 100, groupPct: 40, isBridge: false },
@@ -198,7 +310,7 @@ export const masterSchedule: Course[] = [
       { section: 'T03', type: 'Tutorial', crn: '11259', day: 'Fri', start: '12:00', end: '12:50', quotaAvailable: 0, quotaTotal: 48 }
     ]
   },
-  { crn: '10967', code: 'GE1105', title: 'Chinese Music Appreciation', day: 'Thu', start: '09:00', end: '11:50', credits: 3, quotaTotal: 120, quotaAvailable: 0, requiredMajor: null, prereqs: [], category: 'ge', examPct: 0, courseworkPct: 100, groupPct: 20, isBridge: false },
+  { crn: '10967', code: 'GE1105', title: 'Chinese Music Appreciation', day: 'Thu', start: '09:00', end: '11:50', credits: 3, quotaTotal: 120, quotaAvailable: 0, requiredMajor: null, prereqs: [], category: 'ge', examPct: null, courseworkPct: null, groupPct: null, isBridge: false, syllabusPdf: './syllabi/GE1105.pdf', syllabusYear: '2025/26' },
   { crn: '12003', code: 'BME3121', title: 'Biomedical Signals and Systems', day: 'Thu', start: '09:00', end: '11:50', credits: 3, quotaTotal: 86, quotaAvailable: 28, requiredMajor: 'Biomedical Engineering', prereqs: ['BME2123', 'BME2036'], category: 'stem', examPct: 60, courseworkPct: 40, groupPct: 15, isBridge: false },
   { crn: '15432', code: 'GE2312', title: 'Science, Technology and Society', day: 'Sat', start: '10:00', end: '12:50', credits: 3, quotaTotal: 80, quotaAvailable: 18, requiredMajor: null, prereqs: [], category: 'ge', examPct: 40, courseworkPct: 60, groupPct: 20, isBridge: false },
   { crn: '15433', code: 'EE3315', title: 'Electrical Engineering Topics', day: 'Sat', start: '09:00', end: '11:50', credits: 3, quotaTotal: 60, quotaAvailable: 12, requiredMajor: 'CDE', prereqs: [], category: 'stem', examPct: 50, courseworkPct: 50, groupPct: 15, isBridge: false, syllabusPdf: './syllabi/EE3315.pdf', syllabusYear: '2025/26' },
@@ -208,8 +320,153 @@ export const masterSchedule: Course[] = [
   { crn: '10488', code: 'EE3009', title: 'Data Communications and Networking', day: 'Fri', start: '09:00', end: '11:50', credits: 3, quotaTotal: 95, quotaAvailable: 14, requiredMajor: 'CDE', prereqs: ['EE2004'], category: 'stem', examPct: 50, courseworkPct: 50, groupPct: 20, isBridge: false, syllabusPdf: './syllabi/EE3009.pdf', syllabusYear: '2026/27' },
   { crn: '10024', code: 'CS3201', title: 'Computer Networks', day: 'Fri', start: '12:00', end: '14:50', credits: 3, quotaTotal: 269, quotaAvailable: 7, requiredMajor: 'CS', prereqs: ['CS3334'], category: 'stem', examPct: 50, courseworkPct: 50, groupPct: 20, isBridge: false, syllabusPdf: './syllabi/CS3201.pdf', syllabusYear: '2025/26' },
   { crn: '10771', code: 'CS4487', title: 'Machine Learning', day: 'Wed', start: '18:30', end: '21:20', credits: 3, quotaTotal: 111, quotaAvailable: 31, requiredMajor: null, prereqs: ['MA2001', 'CS3334'], category: 'stem', examPct: 40, courseworkPct: 60, groupPct: 25, isBridge: false, syllabusPdf: './syllabi/CS4487.pdf', syllabusYear: '2025/26' },
-  { crn: '10655', code: 'CS3402', title: 'Database Systems', day: 'Tue', start: '12:00', end: '14:50', credits: 3, quotaTotal: 120, quotaAvailable: 9, requiredMajor: null, prereqs: ['CS3334'], category: 'stem', examPct: 50, courseworkPct: 50, groupPct: 25, isBridge: false, syllabusPdf: './syllabi/CS3402.pdf', syllabusYear: '2025/26' }
+  { crn: '10655', code: 'CS3402', title: 'Database Systems', day: 'Tue', start: '12:00', end: '14:50', credits: 3, quotaTotal: 120, quotaAvailable: 9, requiredMajor: null, prereqs: ['CS3334'], category: 'stem', examPct: 50, courseworkPct: 50, groupPct: 25, isBridge: false, syllabusPdf: './syllabi/CS3402.pdf', syllabusYear: '2025/26' },
+  { crn: '', code: 'GE2129', title: 'Psychology for Young Professionals', day: null, start: null, end: null, credits: 3, quotaTotal: null, quotaAvailable: null, requiredMajor: null, prereqs: [], category: 'ge', examPct: null, courseworkPct: null, groupPct: null, isBridge: false, academicUnit: 'Social and Behavioural Sciences', level: 'Undergraduate', syllabusPdf: './syllabi/GE2129.pdf', syllabusYear: '2025/26' },
+  { crn: '', code: 'GE2335', title: 'Business Programming with Spreadsheet', day: null, start: null, end: null, credits: 3, quotaTotal: null, quotaAvailable: null, requiredMajor: null, prereqs: [], category: 'ge', examPct: null, courseworkPct: null, groupPct: null, isBridge: false, academicUnit: 'Information Systems', level: 'Undergraduate', syllabusPdf: './syllabi/GE2335.pdf', syllabusYear: '2025/26' },
+  { crn: '', code: 'GE1313', title: 'Earthquakes', day: null, start: null, end: null, credits: 3, quotaTotal: null, quotaAvailable: null, requiredMajor: null, prereqs: [], category: 'ge', examPct: null, courseworkPct: null, groupPct: null, isBridge: false, academicUnit: 'Architecture and Civil Engineering', level: 'Undergraduate', syllabusPdf: './syllabi/GE1313.pdf', syllabusYear: '2025/26' },
+  { crn: '', code: 'GE2105', title: 'Popular Culture', day: null, start: null, end: null, credits: 3, quotaTotal: null, quotaAvailable: null, requiredMajor: null, prereqs: [], category: 'ge', examPct: null, courseworkPct: null, groupPct: null, isBridge: false, academicUnit: 'English', level: 'Undergraduate', syllabusPdf: './syllabi/GE2105.pdf', syllabusYear: '2025/26' },
+  { crn: '', code: 'GE1229', title: 'Community Service Engagement', day: null, start: null, end: null, credits: 3, quotaTotal: null, quotaAvailable: null, requiredMajor: null, prereqs: [], category: 'ge', examPct: null, courseworkPct: null, groupPct: null, isBridge: false, academicUnit: 'Social and Behavioural Sciences', level: 'Undergraduate', syllabusPdf: './syllabi/GE1229.pdf', syllabusYear: '2025/26' },
+  {
+    code: 'CB2100', title: 'Introduction to Financial Accounting', crn: '10190',
+    day: 'Tue', start: '16:00', end: '17:50', credits: 3,
+    quotaTotal: null, quotaAvailable: null, requiredMajor: null, prereqs: [], category: 'business',
+    examPct: null, courseworkPct: null, groupPct: null, isBridge: false,
+    academicUnit: 'Accountancy', level: 'Undergraduate', syllabusPdf: './syllabi/CB2100.pdf', syllabusYear: '2026/27',
+    primarySections: [
+      { section: 'C01', type: 'Lecture', crn: '10190', day: 'Tue', start: '16:00', end: '17:50', room: 'MMW 2450', instructor: 'LAI Leon', quotaAvailable: null, quotaTotal: null },
+      { section: 'C02', type: 'Lecture', crn: '10551', day: 'Fri', start: '15:00', end: '16:50', room: 'YEUNG LT-1', instructor: 'LAI Leon', quotaAvailable: null, quotaTotal: null }
+    ],
+    tutorialOptions: [
+      { section: 'T01', type: 'Tutorial', crn: '10244', day: 'Tue', start: '10:00', end: '10:50', room: 'YEUNG B5-309', instructor: 'ZENG Michael', quotaAvailable: null, quotaTotal: null },
+      { section: 'T06', type: 'Tutorial', crn: '10441', day: 'Mon', start: '11:00', end: '11:50', room: 'YEUNG B5-309', instructor: 'BOAMAH John', quotaAvailable: null, quotaTotal: null }
+    ]
+  },
+  {
+    code: 'CB2201', title: 'Operations Management', crn: '10339',
+    day: 'Tue', start: '09:00', end: '11:50', credits: 3,
+    quotaTotal: null, quotaAvailable: 12, requiredMajor: null, prereqs: [], category: 'business',
+    examPct: null, courseworkPct: null, groupPct: null, isBridge: false,
+    academicUnit: 'Decision Analytics & Operations', level: 'Undergraduate', syllabusPdf: './syllabi/CB2201.pdf', syllabusYear: '2025/26',
+    primarySections: [
+      { section: 'C01', type: 'Lecture', crn: '10339', day: 'Tue', start: '09:00', end: '11:50', room: 'YEUNG LT-1', instructor: 'TSANG Oi Sze S., CHUNG Siu Wai W.', quotaAvailable: 12, quotaTotal: null },
+      { section: 'C02', type: 'Lecture', crn: '10340', day: 'Tue', start: '15:00', end: '17:50', room: 'YEUNG LT-2', instructor: 'TSANG Oi Sze S., CHUNG Siu Wai W.', quotaAvailable: 1, quotaTotal: null },
+      { section: 'C03', type: 'Lecture', crn: '10341', day: 'Thu', start: '09:00', end: '11:50', room: 'YEUNG LT-18', instructor: 'TSANG Oi Sze S., CHUNG Siu Wai W.', quotaAvailable: 14, quotaTotal: null },
+      { section: 'C04', type: 'Lecture', crn: '10792', day: 'Wed', start: '09:00', end: '11:50', room: 'YEUNG LT-2', instructor: 'TSANG Oi Sze S., CHUNG Siu Wai W.', quotaAvailable: 10, quotaTotal: null },
+      { section: 'C05', type: 'Lecture', crn: '10678', day: 'Fri', start: '09:00', end: '11:50', room: 'YEUNG LT-1', instructor: 'TSANG Oi Sze S., CHUNG Siu Wai W.', quotaAvailable: 12, quotaTotal: null }
+    ]
+  },
+  {
+    code: 'CB3043', title: 'Business Case Analysis and Communication', crn: '12242',
+    day: 'Fri', start: '12:00', end: '14:50', credits: 3,
+    quotaTotal: null, quotaAvailable: 35, requiredMajor: null, prereqs: ['CB2300'], category: 'business',
+    examPct: null, courseworkPct: null, groupPct: null, isBridge: false,
+    academicUnit: 'Marketing', level: 'Undergraduate', syllabusPdf: './syllabi/CB3043.pdf', syllabusYear: '2026/27',
+    primarySections: [
+      { section: 'S01', type: 'Seminar', crn: '12242', day: 'Fri', start: '12:00', end: '14:50', room: 'LI 1507', instructor: 'LUI Tommy', restriction: 'College: CB', quotaAvailable: 35, quotaTotal: null },
+      { section: 'S02', type: 'Seminar', crn: '12243', day: 'Fri', start: '09:00', end: '11:50', room: 'LI 1507', instructor: 'LUI Tommy', restriction: 'College: CB', quotaAvailable: 26, quotaTotal: null },
+      { section: 'SA1', type: 'Seminar', crn: '12944', day: 'Fri', start: '12:00', end: '14:50', room: 'LI 1507', instructor: 'LUI Tommy', restriction: 'Programme: EXFB', quotaAvailable: 7, quotaTotal: null },
+      { section: 'SA2', type: 'Seminar', crn: '12945', day: 'Fri', start: '09:00', end: '11:50', room: 'LI 1507', instructor: 'LUI Tommy', restriction: 'Programme: EXFB', quotaAvailable: 0, quotaTotal: null }
+    ]
+  },
+  {
+    code: 'AC5711', title: 'International Financial Statement Analysis', crn: '11984',
+    day: 'Tue', start: '09:00', end: '11:50', credits: 3,
+    quotaTotal: 80, quotaAvailable: 0, requiredMajor: null, prereqs: [], category: 'business',
+    examPct: null, courseworkPct: null, groupPct: null, isBridge: false,
+    academicUnit: 'Accountancy', level: 'Postgraduate', syllabusPdf: './syllabi/AC5711.pdf', syllabusYear: '2026/27',
+    scheduleNote: '31 Aug–28 Nov 2026 · Main Campus · English · No waitlist',
+    primarySections: [
+      { section: 'S01', type: 'Seminar', crn: '11984', day: 'Tue', start: '09:00', end: '11:50', room: 'CMC M8061', instructor: 'TAN Qin', restriction: 'Programme: MAIA', quotaAvailable: 0, quotaTotal: 80 },
+      { section: 'S02', type: 'Seminar', crn: '13256', day: 'Wed', start: '09:00', end: '11:50', room: 'LI 2505', instructor: 'TAN Qin', restriction: 'Programme: MAIA', quotaAvailable: 0, quotaTotal: 80 },
+      { section: 'S03', type: 'Seminar', crn: '13939', day: 'Fri', start: '09:00', end: '11:50', room: 'LI 6603', instructor: 'WANG Stacy', restriction: 'Programme: MAIA', quotaAvailable: 2, quotaTotal: 80 },
+      { section: 'S04', type: 'Seminar', crn: '15240', day: 'Sat', start: '16:00', end: '18:50', room: 'LI 6603', instructor: 'WANG Stacy', restriction: 'Programme: MAIA', quotaAvailable: 0, quotaTotal: 80 }
+    ]
+  },
+  {
+    code: 'FB6881P', title: 'Artificial Intelligence and Business Applications', crn: '16015',
+    day: null, start: null, end: null, credits: 2,
+    quotaTotal: 60, quotaAvailable: 21, requiredMajor: null, prereqs: [], category: 'business',
+    examPct: null, courseworkPct: null, groupPct: null, isBridge: false,
+    academicUnit: 'College of Business', level: 'Postgraduate', syllabusPdf: './syllabi/FB6881P.pdf', syllabusYear: '2025/26',
+    scheduleNote: '31 Aug 2026–9 Jan 2027 · Main Campus · Chinese · No waitlist',
+    primarySections: [
+      { section: 'S01', type: 'Seminar', crn: '16015', day: null, start: null, end: null, instructor: 'GAO Stephanie', restriction: 'Programme: EMBA(P)', quotaAvailable: 21, quotaTotal: 60 },
+      { section: 'S02', type: 'Seminar', crn: '16016', day: null, start: null, end: null, instructor: 'GAO Stephanie', restriction: 'Programme: EMBA(P)', quotaAvailable: 15, quotaTotal: 60 }
+    ]
+  }
 ];
+
+const studentLifeStories: BlogPost[] = [
+    {
+      title: 'Finding a lunch routine between classes',
+      subtitle: 'A sample week of meal planning on campus.',
+      summary: 'A student experiments with packing lunch and choosing quieter meal times.',
+      body: ['In this example, a student has a short break between classes and alternates between a packed lunch and buying food on campus.', 'Checking the timetable before leaving home helps them plan a meal break instead of skipping it.'],
+      tags: ['food', 'campus']
+    },
+    {
+      title: 'Eating well on a student budget',
+      subtitle: 'A fictional approach to comparing everyday food costs.',
+      summary: 'A sample student tracks a few meal options and sets a flexible weekly budget.',
+      body: ['This example student records a few typical meal costs and keeps simple groceries for busier days.', 'Prices and opening hours can change, so the example does not recommend a particular venue.'],
+      tags: ['food', 'housing']
+    },
+    {
+      title: 'Settling into a shared residence',
+      subtitle: 'A sample conversation about routines and shared space.',
+      summary: 'Two fictional roommates agree on quiet hours and how to share household tasks.',
+      body: ['At the start of term, the roommates in this example talk about sleep, visitors and keeping shared areas comfortable.', 'They revisit their agreement after their class schedules change.'],
+      tags: ['housing', 'social']
+    },
+    {
+      title: 'A commuter’s plan for a long campus day',
+      subtitle: 'Making room for travel, meals and rest.',
+      summary: 'A sample student groups errands around classes and leaves time for the journey home.',
+      body: ['This fictional commuter looks at the whole day rather than class times alone, including travel and meal breaks.', 'When a group meeting moves, they check their transport plans before committing.'],
+      tags: ['campus', 'housing']
+    },
+    {
+      title: 'Trying a student club without overcommitting',
+      subtitle: 'A fictional first step into campus activities.',
+      summary: 'A student tries one introductory activity before adding a regular commitment.',
+      body: ['In this example, a student attends an introductory club event to see whether it fits their interests and schedule.', 'They leave time for classes and rest before deciding whether to join regular activities.'],
+      tags: ['social', 'campus']
+    },
+    {
+      title: 'Making friends when timetables do not match',
+      subtitle: 'Small ways a sample student stays connected.',
+      summary: 'A fictional group finds a shared break rather than assuming everyone is free after class.',
+      body: ['The students in this example compare their free periods and find a short break that works for everyone.', 'They keep the plan flexible when assignments or personal commitments change.'],
+      tags: ['social']
+    },
+    {
+      title: 'Finding a comfortable place to study',
+      subtitle: 'A sample search for a suitable study environment.',
+      summary: 'A student compares quiet individual work with a space for group discussion.',
+      body: ['This fictional student tries different study environments depending on whether they need quiet reading or a group conversation.', 'Availability varies, so they check current campus information before making plans.'],
+      tags: ['campus', 'workload']
+    },
+    {
+      title: 'Sharing the kitchen during a busy week',
+      subtitle: 'A fictional residence-life example.',
+      summary: 'A few small agreements help roommates plan meals around different schedules.',
+      body: ['In this sample scenario, roommates share their busiest class times and agree on a simple plan for using their kitchen.', 'They leave room for last-minute changes and talk through problems when the plan no longer works.'],
+      tags: ['housing', 'food']
+    }
+  ].map((story, index): BlogPost => ({
+    ...story,
+    id: `life-example-${index + 1}`,
+    author: `Sample student ${index + 5}`,
+    initials: `S${index + 5}`,
+    date: 'November 1, 2026',
+    verificationStatus: 'pending',
+    readTime: '2 min read',
+    helpfulCount: 0,
+    commentCount: 0,
+    authorMeta: 'Fictional student-life scenario',
+    aboutAuthor: 'A fictional student profile created to illustrate the prototype.',
+    comments: []
+  }));
 
 export const blogPosts: BlogPost[] = [
   {
@@ -506,7 +763,8 @@ export const blogPosts: BlogPost[] = [
     comments: [],
     tags: ['ge', 'workload'],
     courseCode: 'GE2305'
-  }
+  },
+  ...studentLifeStories
 ];
 
 export interface ValidationResult {
@@ -530,28 +788,35 @@ function isMajorEligible(requiredMajor: string): boolean {
   return accepted.some(m => studentProfile.major.includes(m));
 }
 
+export function getResolvedPrimarySection(
+  course: Course,
+  selectedSections?: Record<string, SelectedSections>
+): PrimarySection {
+  const options = course.primarySections;
+  if (options?.length) {
+    return options.find(option => option.crn === selectedSections?.[course.code]?.primaryCrn) ?? options[0];
+  }
+  return {
+    section: course.lectureSection || (course.day ? 'C01' : 'Not specified'), type: 'Lecture', crn: course.crn,
+    day: course.day, start: course.start, end: course.end,
+    quotaAvailable: course.quotaAvailable, quotaTotal: course.quotaTotal
+  };
+}
+
 export function getResolvedMeetings(
   course: Course,
-  selectedSections?: Record<string, { tutorialCrn?: string; labCrn?: string }>
+  selectedSections?: Record<string, SelectedSections>
 ): CourseSectionMeeting[] {
-  const meetings: CourseSectionMeeting[] = [
-    {
-      section: course.lectureSection || 'C01',
-      type: 'Lecture',
-      crn: course.crn,
-      day: course.day,
-      start: course.start,
-      end: course.end,
-      quotaAvailable: course.quotaAvailable,
-      quotaTotal: course.quotaTotal,
-    }
-  ];
+  const primary = getResolvedPrimarySection(course, selectedSections);
+  const meetings: CourseSectionMeeting[] = primary.day && primary.start && primary.end
+    ? [{ ...primary, day: primary.day, start: primary.start, end: primary.end }]
+    : [];
 
   if (course.tutorialOptions && course.tutorialOptions.length > 0) {
     const chosenCrn = selectedSections?.[course.code]?.tutorialCrn;
     const chosen =
       (chosenCrn ? course.tutorialOptions.find(t => t.crn === chosenCrn) : undefined) ||
-      course.tutorialOptions.find(t => t.quotaAvailable > 0) ||
+      course.tutorialOptions.find(t => t.quotaAvailable !== null && t.quotaAvailable > 0) ||
       course.tutorialOptions[0];
     if (chosen) meetings.push(chosen);
   }
@@ -560,7 +825,7 @@ export function getResolvedMeetings(
     const chosenCrn = selectedSections?.[course.code]?.labCrn;
     const chosen =
       (chosenCrn ? course.labOptions.find(l => l.crn === chosenCrn) : undefined) ||
-      course.labOptions.find(l => l.quotaAvailable > 0) ||
+      course.labOptions.find(l => l.quotaAvailable !== null && l.quotaAvailable > 0) ||
       course.labOptions[0];
     if (chosen) meetings.push(chosen);
   }
@@ -573,18 +838,31 @@ export function validateCourse(
   enrolledCodes: string[],
   swapOutCode: string | null = null,
   outsideCommitments = false,
-  selectedSections?: Record<string, { tutorialCrn?: string; labCrn?: string }>
+  selectedSections?: Record<string, SelectedSections>
 ): ValidationResult {
   const reasons: string[] = [];
   const courseMeetings = getResolvedMeetings(course, selectedSections);
+  const primary = getResolvedPrimarySection(course, selectedSections);
+
+  if (!primary.day || !primary.start || !primary.end) {
+    reasons.push(`Schedule unknown: ${course.code} (${primary.section}) has no meeting time; conflicts cannot be checked.`);
+  }
+  if (primary.restriction) {
+    reasons.push(`Eligibility not verified: ${primary.section} is restricted to ${primary.restriction}.`);
+  }
 
   // 1. Quota check across all resolved meetings (lecture, chosen tutorial, chosen lab)
+  if (primary.quotaAvailable === null && courseMeetings.length === 0) {
+    reasons.push(`Availability unknown: ${course.code} (${primary.section}).`);
+  }
   for (const m of courseMeetings) {
-    if (m.quotaAvailable <= 0) {
-      if (m.type === 'Lecture') {
-        reasons.push(`Course ${course.code} is full (0/${m.quotaTotal} seats open).`);
+    if (m.quotaAvailable === null) {
+      reasons.push(`Availability unknown: ${course.code} (${m.section} ${m.type}).`);
+    } else if (m.quotaAvailable <= 0) {
+      if (m.type === 'Lecture' || m.type === 'Seminar') {
+        reasons.push(`Course ${course.code} (${m.section}) is full (0 seats open).`);
       } else {
-        reasons.push(`Section ${course.code} (${m.section} ${m.type}) is full (0/${m.quotaTotal} seats open).`);
+        reasons.push(`Section ${course.code} (${m.section} ${m.type}) is full (0 seats open).`);
       }
     }
   }
@@ -599,6 +877,9 @@ export function validateCourse(
       const dropNote = req === swapOutCode ? ' (it is currently marked for drop)' : '';
       reasons.push(`Unmet Prerequisite: ${req} is required before enrolling in ${course.code}${dropNote}.`);
     }
+  }
+  if (course.prerequisiteNote) {
+    reasons.push(`Prerequisite eligibility not verified: ${course.prerequisiteNote}`);
   }
 
   // 3. Major restriction
