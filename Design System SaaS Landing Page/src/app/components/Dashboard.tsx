@@ -22,13 +22,19 @@ import {
 import {
   masterSchedule,
   blogPosts,
+  simulatedGEAreas,
+  simulatedCourseFeedback,
+  SIMULATED_GRADE_POINTS,
   studentProfile,
   validateCourse,
   getResolvedMeetings,
+  getResolvedPrimarySection,
   parseMinutes,
   Course,
   CourseSectionMeeting,
-  BlogPost
+  BlogPost,
+  type SelectedSections,
+  type GEArea
 } from "../data/courseData";
 import { BrandMark } from "./Header";
 import { Button } from "./ui/button";
@@ -48,6 +54,22 @@ const PIXELS_PER_HOUR = 44;
 const MIN_EVENT_HEIGHT = 38;
 const GRID_HEIGHT = (GRID_END_MINUTES - GRID_START_MINUTES) / 60 * PIXELS_PER_HOUR;
 type CreditPolicy = 'standard' | 'overload' | 'final_sem';
+type CatalogueFilter = 'all' | 'ge' | 'stem' | 'business' | 'coursework' | 'open' | 'noclash';
+
+const BLOG_TOPICS = [
+  ['stem', 'STEM'], ['ge', 'GE'], ['business', 'Business'], ['workload', 'Workload'], ['transfer', 'Direct-Entry'],
+  ['campus', 'Campus life'], ['social', 'Social life'], ['housing', 'Housing'], ['food', 'Food']
+] as const;
+type BlogTopic = typeof BLOG_TOPICS[number][0];
+const isBlogTopic = (value: string): value is BlogTopic => BLOG_TOPICS.some(([topic]) => topic === value);
+const BLOG_PAGE_SIZE = 6;
+
+const GE_AREA_LABELS: Record<GEArea, string> = {
+  area1: 'Area 1',
+  area2: 'Area 2',
+  area3: 'Area 3',
+  unireq: 'University Requirement'
+};
 
 const CREDIT_POLICY_LIMITS: Record<CreditPolicy, { minCredits: number; maxCredits: number }> = {
   standard: { minCredits: 12, maxCredits: 18 },
@@ -73,7 +95,7 @@ interface TimetableEvent {
   course?: Course;
   label: string;
   section: string;
-  meetingType: 'Lecture' | 'Tutorial' | 'Lab';
+  meetingType: 'Lecture' | 'Seminar' | 'Tutorial' | 'Lab';
   meetingCrn: string;
   startStr: string;
   endStr: string;
@@ -100,6 +122,7 @@ interface PersonalCommitment {
   startHour: number;
   endHour: number;
   enabled: boolean;
+  demoCalendarId?: string;
 }
 
 interface ActivePersonalBlock {
@@ -110,12 +133,17 @@ interface ActivePersonalBlock {
   endHour: number;
   label: string;
   category: PersonalCommitment['category'];
+  demoCalendarId?: string;
 }
 
 const COMMITMENT_DAYS: PersonalCommitment['days'] = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const DEFAULT_COMMITMENTS: PersonalCommitment[] = [
   { id: 'pc-1', label: 'Part-time internship shift', category: 'Internship', days: ['Thu'], startHour: 14, endHour: 16, enabled: true },
   { id: 'pc-2', label: 'Independent study & commute', category: 'Personal', days: ['Mon'], startHour: 10, endHour: 12, enabled: true }
+];
+const DEMO_CALENDAR_EVENTS: Array<Omit<PersonalCommitment, 'id' | 'enabled'> & { demoCalendarId: string }> = [
+  { demoCalendarId: 'study-group', label: 'Example study group', category: 'Personal', days: ['Tue'], startHour: 9, endHour: 10 },
+  { demoCalendarId: 'work-shift', label: 'Example work shift', category: 'Part-time work', days: ['Fri'], startHour: 13, endHour: 15 }
 ];
 
 const formatHour = (hour: number) => `${String(Math.floor(hour)).padStart(2, '0')}:${hour % 1 ? '30' : '00'}`;
@@ -144,17 +172,22 @@ export function Dashboard() {
   const [posts, setPosts] = useState<BlogPost[]>(blogPosts);
   const [openPostId, setOpenPostId] = useState<string | null>(null);
   const [blogSearchQuery, setBlogSearchQuery] = useState('');
-  const [blogFilter, setBlogFilter] = useState<'all' | 'stem' | 'ge' | 'workload' | 'transfer'>('all');
+  const [blogFilter, setBlogFilter] = useState<'all' | BlogTopic>('all');
+  const [blogPage, setBlogPage] = useState(1);
   const [blogVerificationFilter, setBlogVerificationFilter] = useState<'all' | BlogPost['verificationStatus']>('all');
   const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
   const [helpfulPostIds, setHelpfulPostIds] = useState<string[]>([]);
   const [shareExperienceOpen, setShareExperienceOpen] = useState(false);
+  const [shareType, setShareType] = useState<'course' | 'life' | ''>('');
   const [shareCourseCode, setShareCourseCode] = useState('');
   const [shareTitle, setShareTitle] = useState('');
-  const [shareSubtitle, setShareSubtitle] = useState('');
-  const [shareCategory, setShareCategory] = useState<'stem' | 'ge' | 'workload' | 'transfer'>('stem');
+  const [shareCategory, setShareCategory] = useState<BlogTopic | ''>('');
   const [shareContext, setShareContext] = useState('');
+  const [shareSemester, setShareSemester] = useState('');
+  const [shareWorkload, setShareWorkload] = useState('');
   const [shareBody, setShareBody] = useState('');
+  const [shareTip, setShareTip] = useState('');
+  const selectedShareCourse = masterSchedule.find(course => course.code === shareCourseCode.trim().toUpperCase());
   const activeBlogPost = posts.find(post => post.id === openPostId);
   const activeBlogCourseCode = activeBlogPost?.courseCode;
   const activeBlogCourse = masterSchedule.find(course => course.code === activeBlogCourseCode);
@@ -170,12 +203,15 @@ export function Dashboard() {
   const filteredBlogPosts = posts.filter(post => {
     const matchesCategory = blogFilter === 'all' || post.tags.includes(blogFilter);
     const matchesVerification = blogVerificationFilter === 'all' || post.verificationStatus === blogVerificationFilter;
-    const searchableText = [post.courseCode, post.title, post.subtitle, post.author]
+    const searchableText = [post.courseCode, post.title, post.subtitle, post.author, post.summary, ...post.tags]
       .filter(Boolean)
       .join(' ')
       .toLowerCase();
     return matchesCategory && matchesVerification && (!normalizedBlogQuery || searchableText.includes(normalizedBlogQuery));
   });
+  const blogPageCount = Math.max(1, Math.ceil(filteredBlogPosts.length / BLOG_PAGE_SIZE));
+  const currentBlogPage = Math.min(blogPage, blogPageCount);
+  const visibleBlogPosts = filteredBlogPosts.slice((currentBlogPage - 1) * BLOG_PAGE_SIZE, currentBlogPage * BLOG_PAGE_SIZE);
 
   // Simulation State
   const [enrolled, setEnrolled] = useState<string[]>([...studentProfile.baselineEnrolled]);
@@ -188,12 +224,14 @@ export function Dashboard() {
     selectedReplacementsRef.current = next;
     setSelectedReplacementsState(next);
   };
-  const [selectedSections, setSelectedSections] = useState<Record<string, { tutorialCrn?: string; labCrn?: string }>>({});
+  const [selectedSections, setSelectedSections] = useState<Record<string, SelectedSections>>({});
   const [creditPolicy, setCreditPolicy] = useState<CreditPolicy>('standard');
   const [hoveredCourseCode, setHoveredCourseCode] = useState<string | null>(null);
   const [blockPersonalTime, setBlockPersonalTime] = useState(true);
   const [personalCommitments, setPersonalCommitments] = useState<PersonalCommitment[]>(() => DEFAULT_COMMITMENTS.map(commitment => ({ ...commitment, days: [...commitment.days] })));
   const [showCommitmentManager, setShowCommitmentManager] = useState(false);
+  const [demoCalendarConnected, setDemoCalendarConnected] = useState(false);
+  const [selectedDemoEvents, setSelectedDemoEvents] = useState<string[]>([]);
   const [newLabel, setNewLabel] = useState('');
   const [newCategory, setNewCategory] = useState<PersonalCommitment['category']>('Internship');
   const [newDays, setNewDays] = useState<PersonalCommitment['days']>([]);
@@ -207,7 +245,12 @@ export function Dashboard() {
   const [personalDragOffset, setPersonalDragOffset] = useState(0);
   const [personalDropPreview, setPersonalDropPreview] = useState<{ day: PersonalCommitment['days'][number]; startHour: number } | null>(null);
   const [highlightBridge, setHighlightBridge] = useState<boolean>(false);
-  const [activeFilter, setActiveFilter] = useState<'all' | 'ge' | 'stem' | 'coursework' | 'open' | 'noclash'>('all');
+  const [activeFilter, setActiveFilter] = useState<CatalogueFilter>('all');
+  const [geAreaFilter, setGEAreaFilter] = useState<GEArea | 'all'>('all');
+  const changeCatalogueFilter = (filter: CatalogueFilter) => {
+    setActiveFilter(filter);
+    if (filter !== 'ge') setGEAreaFilter('all');
+  };
   const [searchQuery, setSearchQuery] = useState('');
 
   // Course Inspector State
@@ -270,6 +313,7 @@ export function Dashboard() {
 
   // Search input ref for '/' shortcut
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const catalogueHeadingRef = useRef<HTMLHeadingElement>(null);
   const controlGateRef = useRef<HTMLDivElement>(null);
   const commitmentManagerRef = useRef<HTMLDivElement>(null);
   const commitmentTitleRef = useRef<HTMLInputElement>(null);
@@ -467,7 +511,8 @@ export function Dashboard() {
             startHour: commitment.startHour,
             endHour: commitment.endHour,
             label: commitment.label,
-            category: commitment.category
+            category: commitment.category,
+            demoCalendarId: commitment.demoCalendarId
           }))
         )
       : [], [blockPersonalTime, personalCommitments]);
@@ -480,8 +525,14 @@ export function Dashboard() {
       parseMinutes(meeting.end) > block.startHour * 60
     ));
   };
+  const commitmentPreviewConflicts = [...enrolledCourses.filter(course => course.code !== swapOutId), ...stagedCourses]
+    .flatMap(course => getResolvedMeetings(course, selectedSections)
+      .filter(meeting => newDays.includes(meeting.day) &&
+        parseMinutes(meeting.start) < newEndHour * 60 &&
+        parseMinutes(meeting.end) > newStartHour * 60)
+      .map(meeting => ({ code: course.code, meeting })));
   const personalOverlapMessage = (block: ActivePersonalBlock) =>
-    `Overlaps "${block.label}" (${block.day} ${formatHour(block.startHour)}-${formatHour(block.endHour)} · You entered).`;
+    `Overlaps "${block.label}" (${block.day} ${formatHour(block.startHour)}-${formatHour(block.endHour)} · ${block.demoCalendarId ? 'Demo calendar' : 'You entered'}).`;
 
   const stagedPersonalOverlaps = activePersonalBlocks.filter(block =>
     stagedCourses.some(course => getPersonalOverlaps(course).some(overlap => overlap.id === block.id))
@@ -664,7 +715,7 @@ export function Dashboard() {
     for (const meeting of getResolvedMeetings(candidate, selectedSections)) {
       const reasons: string[] = [];
       if (creditCeilingReason) reasons.push(creditCeilingReason);
-      if (meeting.quotaAvailable <= 0) {
+      if (meeting.quotaAvailable !== null && meeting.quotaAvailable <= 0) {
         reasons.push(`${meeting.section} is full`);
       }
 
@@ -705,9 +756,17 @@ export function Dashboard() {
 
     if (activeFilter === 'ge') list = list.filter(c => c.category === 'ge');
     else if (activeFilter === 'stem') list = list.filter(c => c.category === 'stem');
+    else if (activeFilter === 'business') list = list.filter(c => c.category === 'business');
     else if (activeFilter === 'coursework') list = list.filter(c => c.examPct === 0);
-    else if (activeFilter === 'open') list = list.filter(c => c.quotaAvailable > 0);
+    else if (activeFilter === 'open') list = list.filter(c => {
+      const available = getResolvedPrimarySection(c, selectedSections).quotaAvailable;
+      return available !== null && available > 0;
+    });
     else if (activeFilter === 'noclash') list = list.filter(c => validateDraftCourse(c).ok);
+
+    if (activeFilter === 'ge' && geAreaFilter !== 'all') {
+      list = list.filter(c => simulatedGEAreas[c.code] === geAreaFilter);
+    }
 
     if (highlightBridge) list = list.filter(c => c.isBridge);
 
@@ -717,11 +776,11 @@ export function Dashboard() {
         c.code.toLowerCase().includes(q) ||
         c.title.toLowerCase().includes(q) ||
         c.crn.includes(q) ||
-        c.day.toLowerCase().includes(q)
+        c.day?.toLowerCase().includes(q)
       );
     }
     return list;
-  }, [enrolled, swapOutId, activeFilter, highlightBridge, searchQuery, selectedSections, stagedCourses]);
+  }, [enrolled, swapOutId, activeFilter, geAreaFilter, highlightBridge, searchQuery, selectedSections, stagedCourses]);
 
   // Staging actions
   const handleStageCourse = (code: string) => {
@@ -752,12 +811,12 @@ export function Dashboard() {
     }
   };
 
-  const handleSelectSection = (code: string, type: 'tutorial' | 'lab', crn: string) => {
+  const handleSelectSection = (code: string, type: 'primary' | 'tutorial' | 'lab', crn: string) => {
     setSelectedSections(current => ({
       ...current,
       [code]: {
         ...current[code],
-        [type === 'tutorial' ? 'tutorialCrn' : 'labCrn']: crn
+        [type === 'primary' ? 'primaryCrn' : type === 'tutorial' ? 'tutorialCrn' : 'labCrn']: crn
       }
     }));
   };
@@ -793,23 +852,24 @@ export function Dashboard() {
   };
 
   const renderSectionSelectors = (course: Course, compact = false) => {
-    const renderOptions = (type: 'tutorial' | 'lab') => {
-      const options = type === 'tutorial' ? course.tutorialOptions : course.labOptions;
+    const renderOptions = (type: 'primary' | 'tutorial' | 'lab') => {
+      const options = type === 'primary' ? course.primarySections : type === 'tutorial' ? course.tutorialOptions : course.labOptions;
       if (!options?.length) return null;
 
-      const selectedCrn = type === 'tutorial'
-        ? selectedSections[course.code]?.tutorialCrn || options.find(option => option.quotaAvailable > 0)?.crn || options[0].crn
-        : selectedSections[course.code]?.labCrn || options.find(option => option.quotaAvailable > 0)?.crn || options[0].crn;
+      const selectedCrn = type === 'primary'
+        ? getResolvedPrimarySection(course, selectedSections).crn
+        : (type === 'tutorial' ? selectedSections[course.code]?.tutorialCrn : selectedSections[course.code]?.labCrn)
+          || options.find(option => option.quotaAvailable !== null && option.quotaAvailable > 0)?.crn || options[0].crn;
 
       return (
         <div key={type} className="space-y-1">
           <span className="block font-mono text-[10px] font-bold uppercase text-muted-foreground">
-            {type === 'tutorial' ? 'Tutorial' : 'Lab'} section
+            {type === 'primary' ? 'Lecture or seminar' : type === 'tutorial' ? 'Tutorial' : 'Lab'} section
           </span>
           <div className="flex flex-wrap gap-1">
             {options.map(option => {
               const isSelected = selectedCrn === option.crn;
-              const isFull = option.quotaAvailable <= 0;
+              const isFull = option.quotaAvailable !== null && option.quotaAvailable <= 0;
               return (
                 <button
                   key={option.crn}
@@ -824,9 +884,12 @@ export function Dashboard() {
                       : 'border-black/15 bg-white text-[#171717] hover:border-black/35'
                   }`}
                 >
-                  <span>{option.section} · {option.day} {option.start}–{option.end}</span>
-                  <span className={`ml-1 font-semibold ${isFull ? 'text-red-700' : 'text-green-700'}`}>
-                    {isFull ? 'FULL' : `${option.quotaAvailable} open`}
+                  <span>{option.section} · CRN {option.crn} · {option.day ? `${option.day} ${option.start}–${option.end}` : 'Time not provided'}</span>
+                  {option.room && <span> · {option.room}</span>}
+                  {option.instructor && <span> · {option.instructor}</span>}
+                  {option.restriction && <span> · {option.restriction}</span>}
+                  <span className={`ml-1 font-semibold ${option.quotaAvailable === null ? 'text-amber-800' : isFull ? 'text-red-700' : 'text-green-700'}`}>
+                    {option.quotaAvailable === null ? 'Availability unknown' : isFull ? 'FULL' : `${option.quotaAvailable} open`}
                   </span>
                 </button>
               );
@@ -836,9 +899,10 @@ export function Dashboard() {
       );
     };
 
-    if (!course.tutorialOptions?.length && !course.labOptions?.length) return null;
+    if (!course.primarySections?.length && !course.tutorialOptions?.length && !course.labOptions?.length) return null;
     return (
       <div className={`mt-2 space-y-2 ${compact ? '' : 'border-t border-black/10 pt-3'}`}>
+        {renderOptions('primary')}
         {renderOptions('tutorial')}
         {renderOptions('lab')}
       </div>
@@ -846,8 +910,8 @@ export function Dashboard() {
   };
 
   const getCourseCrnSummary = (course: Course) =>
-    getResolvedMeetings(course, selectedSections)
-      .map(meeting => `CRN ${meeting.crn} (${meeting.section})`)
+    [getResolvedPrimarySection(course, selectedSections), ...getResolvedMeetings(course, selectedSections).filter(meeting => meeting.type === 'Tutorial' || meeting.type === 'Lab')]
+      .map(section => section.crn ? `CRN ${section.crn} (${section.section})` : 'CRN not provided')
       .join(' + ');
 
   const handleOpenInspector = (code: string) => {
@@ -897,7 +961,7 @@ export function Dashboard() {
     return masterSchedule.filter(c =>
       c.code.toLowerCase().includes(q) ||
       c.title.toLowerCase().includes(q) ||
-      c.day.toLowerCase().includes(q) ||
+      c.day?.toLowerCase().includes(q) ||
       c.crn.toLowerCase().includes(q)
     );
   }, [inspectorSearchQuery]);
@@ -959,8 +1023,8 @@ export function Dashboard() {
     const lecH = 2;
     const tutH = 1;
     const labH = inspectorCourse.category === 'stem' ? 2 : 0;
-    const projH = inspectorCourse.groupPct >= 25 ? 3 : 2;
-    const prepH = inspectorCourse.examPct >= 50 ? 5 : 3;
+    const projH = (inspectorCourse.groupPct ?? 0) >= 25 ? 3 : 2;
+    const prepH = (inspectorCourse.examPct ?? 0) >= 50 ? 5 : 3;
     const totalH = lecH + tutH + labH + projH + prepH;
     return { lecH, tutH, labH, projH, prepH, totalH };
   }, [inspectorCourse]);
@@ -968,9 +1032,22 @@ export function Dashboard() {
   // Matching blog posts
   const inspectorMatchingBlogs = useMemo(() => {
     if (!inspectorCourse) return [];
-    const matching = posts.filter(p => p.courseCode === inspectorCourse.code);
-    return matching.length > 0 ? matching : posts.slice(0, 2);
+    return posts.filter(p => p.courseCode === inspectorCourse.code);
   }, [inspectorCourse, posts]);
+
+  const feedback = inspectorCourse ? simulatedCourseFeedback[inspectorCourse.code] : undefined;
+  const gradeRows = feedback
+    ? (Object.keys(SIMULATED_GRADE_POINTS) as Array<keyof typeof SIMULATED_GRADE_POINTS>).map(grade => ({
+        grade,
+        count: feedback.gradeCounts[grade],
+        points: SIMULATED_GRADE_POINTS[grade]
+      }))
+    : [];
+  const gradeCount = gradeRows.reduce((total, row) => total + row.count, 0);
+  const maxGradeCount = Math.max(0, ...gradeRows.map(row => row.count));
+  const meanGrade = gradeCount > 0
+    ? gradeRows.reduce((total, row) => total + row.count * row.points, 0) / gradeCount
+    : null;
 
   return (
     <div className="min-h-screen bg-[#f5f4ef] font-sans text-[#171717] flex flex-col">
@@ -1070,7 +1147,7 @@ export function Dashboard() {
                           How do I try a course swap?
                         </AccordionTrigger>
                         <AccordionContent className="text-sm leading-relaxed text-[#52525B]">
-                          Select an enrolled course to mark it for drop, then stage one or more courses from the catalogue. Review the whole draft together. To remove a staged course, use its remove button or drag it to the removal area.
+                          Mark an enrolled course for drop, then add one or more catalogue courses to your rehearsal. Review the draft together. To remove a course, use its remove button or drag it to the removal area.
                         </AccordionContent>
                       </AccordionItem>
                       <AccordionItem value="warnings" className="border-[#E4E1DA] px-4">
@@ -1140,29 +1217,6 @@ export function Dashboard() {
                   <p className="mt-1 text-xs text-muted-foreground">Semester B 2026/27</p>
                 </div>
 
-                <label htmlFor="credit-policy" className="mt-3 block space-y-1.5 text-xs">
-                  <span className="font-semibold">Credit Policy</span>
-                  <select
-                    id="credit-policy"
-                    aria-label="Credit Policy"
-                    value={creditPolicy}
-                    onChange={event => {
-                      const value = event.target.value;
-                      if (value === 'standard' || value === 'overload' || value === 'final_sem') {
-                        setCreditPolicy(value);
-                      }
-                    }}
-                    className="h-9 w-full rounded-lg border border-[#E4E1DA] bg-white px-2 text-xs outline-none focus:border-[#18181B] focus:ring-1 focus:ring-[#18181B]"
-                  >
-                    <option value="standard">Standard (12–18 CR)</option>
-                    <option value="overload">Overload Approved (12–21 CR)</option>
-                    <option value="final_sem">Final Sem (3–18 CR)</option>
-                  </select>
-                </label>
-                <p className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground">
-                  Controls min/max credit guardrails in Rehearsal Timetable
-                </p>
-
                 <Link
                   to="/"
                   className="mt-3 block w-full rounded-lg border-t border-[#E4E1DA] pt-3 text-left text-xs font-medium text-muted-foreground transition-colors hover:text-[#171717]"
@@ -1198,30 +1252,97 @@ export function Dashboard() {
                 </div>
 
                 {/* Filter / Settings Pill Row */}
-                <div className="flex min-w-0 items-center gap-2 overflow-x-auto whitespace-nowrap">
-                  <button
-                    onClick={() => setHighlightBridge(!highlightBridge)}
-                    aria-pressed={highlightBridge}
-                    title="Foundation courses required for Direct-Entry / Senior Year transfer students"
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono transition border ${
-                      highlightBridge
-                        ? 'bg-[#d9ff63] border-black text-[#171717] font-semibold'
-                        : 'bg-white border-black/10 text-muted-foreground'
+                <div className="flex min-w-0 flex-wrap items-center gap-2.5">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      onClick={() => setHighlightBridge(!highlightBridge)}
+                      aria-pressed={highlightBridge}
+                      title="Filter catalogue to Direct-Entry / Transfer foundation courses only"
+                      className={`flex h-9 items-center gap-1.5 px-3 rounded-lg text-xs font-mono transition border ${
+                        highlightBridge
+                          ? 'bg-[#d9ff63] border-black text-[#171717] font-semibold'
+                          : 'bg-white border-black/10 text-muted-foreground'
+                      }`}
+                    >
+                      <Layers className="h-3.5 w-3.5" aria-hidden="true" />
+                      <span>Direct-entry courses (2): {highlightBridge ? 'On' : 'Off'}</span>
+                    </button>
+                    <span className="text-xs text-muted-foreground">For direct-entry students</span>
+                  </div>
+
+                  <div
+                    role="group"
+                    aria-label="Personal time controls"
+                    className={`inline-flex max-w-full flex-wrap items-stretch overflow-hidden rounded-lg border text-xs text-[#18181B] transition-colors sm:h-9 sm:flex-nowrap ${
+                      blockPersonalTime ? 'border-[#18181B] bg-[#D9F99D]' : 'border-black/10 bg-white'
                     }`}
                   >
-                    <Layers className="h-3.5 w-3.5" />
-                    <span>Direct-Entry Core (2)</span>
-                  </button>
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-label="Personal time"
+                      aria-checked={blockPersonalTime}
+                      onClick={() => setBlockPersonalTime(current => !current)}
+                      title={blockPersonalTime ? 'Turn personal time off (hides blocks & overlap checks)' : 'Turn personal time on'}
+                      className="inline-flex min-h-9 items-center gap-1.5 px-3 font-semibold transition-colors hover:bg-black/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#18181B]"
+                    >
+                      <Clock className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                      <span className="whitespace-nowrap">
+                        Personal Time: {blockPersonalTime ? 'On' : 'Off'} ({personalCommitments.filter(commitment => commitment.enabled).length})
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      aria-label="Edit personal commitments"
+                      title="Add or edit recurring personal commitments"
+                      onClick={() => {
+                        setEditingCommitmentId(null);
+                        setEditingCommitmentDay(null);
+                        setNewLabel('');
+                        setShowCommitmentManager(true);
+                      }}
+                      className={`inline-flex min-h-9 items-center gap-1.5 border-t px-3 font-medium transition-colors hover:bg-black/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#18181B] sm:border-l sm:border-t-0 ${
+                        blockPersonalTime ? 'border-[#18181B]/20' : 'border-black/10'
+                      }`}
+                    >
+                      <Pencil className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                      <span className="whitespace-nowrap">Edit Commitments</span>
+                    </button>
+                  </div>
+
+                  <label
+                    htmlFor="credit-policy"
+                    title="Set the minimum and maximum credit load for this rehearsal"
+                    className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-black/10 bg-white px-2.5 py-1.5 text-xs"
+                  >
+                    <span className="font-semibold">Credit policy</span>
+                    <select
+                      id="credit-policy"
+                      aria-label="Credit Policy"
+                      value={creditPolicy}
+                      onChange={event => {
+                        const value = event.target.value;
+                        if (value === 'standard' || value === 'overload' || value === 'final_sem') {
+                          setCreditPolicy(value);
+                        }
+                      }}
+                      className="h-7 rounded-md border border-black/10 bg-white px-2 text-xs outline-none focus:border-[#18181B] focus:ring-1 focus:ring-[#18181B]"
+                    >
+                      <option value="standard">Standard (12–18 CR)</option>
+                      <option value="overload">Overload Approved (12–21 CR)</option>
+                      <option value="final_sem">Final Sem (3–18 CR)</option>
+                    </select>
+                  </label>
 
                   <div
                     role="status"
-                    aria-label={`Projected credit load ${projectedCredits.toFixed(1)} of ${activeMaxCredits.toFixed(1)}, policy minimum ${activeMinCredits.toFixed(1)}`}
-                    className={`flex shrink-0 items-center gap-2 whitespace-nowrap rounded-lg border px-3 py-1.5 text-xs font-mono ${
+                    aria-label={`Enrolled ${currentTotalCredits.toFixed(1)} credits. Projected ${projectedCredits.toFixed(1)} of ${activeMaxCredits.toFixed(1)} maximum credits; policy minimum ${activeMinCredits.toFixed(1)} credits.`}
+                    className={`flex shrink-0 items-center gap-2 whitespace-nowrap rounded-lg border px-3 py-1.5 text-[10px] font-mono sm:text-xs ${
                       wouldBeBelowMin || wouldExceedMax ? 'border-red-300 bg-red-50 font-semibold text-red-800' : 'border-black/10 bg-white'
                     }`}
                   >
                     <span className={`h-2 w-2 rounded-full ${wouldBeBelowMin || wouldExceedMax ? 'bg-red-500' : 'bg-green-500'}`} />
-                    <span>Projected {projectedCredits.toFixed(1)} / {activeMaxCredits.toFixed(1)} CR (Min {activeMinCredits.toFixed(1)})</span>
+                    <span>Enrolled {currentTotalCredits.toFixed(1)} CR · Projected {projectedCredits.toFixed(1)} / {activeMaxCredits.toFixed(1)} CR (Min {activeMinCredits.toFixed(1)})</span>
                   </div>
 
                   {hasPendingChange && (
@@ -1373,12 +1494,29 @@ export function Dashboard() {
                 </div>
               )}
 
+              <button
+                type="button"
+                onClick={() => {
+                  const heading = catalogueHeadingRef.current;
+                  if (heading) {
+                    scrollIntoViewWithMotion(heading, { block: 'start' });
+                    heading.focus({ preventScroll: true });
+                  }
+                }}
+                className="inline-flex min-h-9 items-center gap-1.5 text-xs font-semibold text-[#6c4cff] hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#6c4cff] xl:hidden"
+              >
+                Jump to course catalogue <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+              </button>
+
               {/* Two-Column Grid: Left Timetable Calendar + Right Catalogue Bay */}
               <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
                 {/* Left 8 Columns: Weekly Timetable Calendar */}
                 <div className="xl:col-span-8 bg-white border border-black/10 rounded-2xl p-5 shadow-sm">
                   <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b pb-3">
-                    <span className="font-semibold text-xs text-[#171717]">Weekly Academic Grid (Mon–Sat 08:00–23:00)</span>
+                    <div className="flex flex-col">
+                      <span className="font-semibold text-xs text-[#171717]">Weekly Academic Grid (Mon–Sat 08:00–23:00)</span>
+                      <span className="mt-1 text-[10px] text-muted-foreground 2xl:hidden">Swipe or scroll horizontally to view all days</span>
+                    </div>
                     <div className="flex flex-wrap items-center gap-3 text-[11px] font-mono text-muted-foreground">
                       <span className="flex items-center gap-1.5">
                         <span className="w-2.5 h-2.5 rounded-sm bg-[#171717]" />
@@ -1392,37 +1530,6 @@ export function Dashboard() {
                         <span className="w-2.5 h-2.5 rounded-sm border-2 border-dashed border-[#6c4cff] bg-[#f5f3ff]" />
                         Staged
                       </span>
-                      <div className={`inline-flex h-6 items-stretch overflow-hidden rounded-full border font-sans text-[#18181B] ${
-                        blockPersonalTime ? 'border-[#18181B] bg-[#D9F99D]' : 'border-[#E4E1DA] bg-[#F7F5F0]'
-                      }`}>
-                        <button
-                          type="button"
-                          role="switch"
-                          aria-label="Personal time"
-                          aria-checked={blockPersonalTime}
-                          onClick={() => setBlockPersonalTime(current => !current)}
-                          title={blockPersonalTime ? 'Turn personal time off' : 'Turn personal time on'}
-                          className="inline-flex items-center gap-1 rounded-l-full px-2 text-[10px] leading-none font-semibold transition-colors hover:bg-black/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#18181B]"
-                        >
-                          <Clock className="h-3 w-3" aria-hidden="true" />
-                          <span>Personal time ({personalCommitments.filter(commitment => commitment.enabled).length})</span>
-                          <span className="font-medium">{blockPersonalTime ? 'On' : 'Off'}</span>
-                        </button>
-                        <button
-                          type="button"
-                          aria-label="Edit personal commitments"
-                          title="Edit personal commitments"
-                          onClick={() => {
-                            setEditingCommitmentId(null);
-                            setEditingCommitmentDay(null);
-                            setNewLabel('');
-                            setShowCommitmentManager(true);
-                          }}
-                          className="inline-flex items-center justify-center rounded-r-full border-l border-[#18181B]/20 px-1.5 text-[10px] leading-none transition-colors hover:bg-black/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#18181B]"
-                        >
-                          <Pencil className="h-3 w-3" aria-hidden="true" />
-                        </button>
-                      </div>
                       {draggedCourseCode && <span className="font-semibold text-emerald-700">Drop course to preview its schedule</span>}
                     </div>
                   </div>
@@ -1443,7 +1550,10 @@ export function Dashboard() {
                     </div>
                   )}
                   <div
-                    className="w-full overflow-hidden"
+                    role="region"
+                    aria-label="Weekly timetable. Scroll horizontally to view each day."
+                    tabIndex={0}
+                    className="w-full overflow-x-auto overscroll-x-contain focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#6c4cff]"
                     onDragOver={event => {
                       if (!draggedCourseCode) return;
                       event.preventDefault();
@@ -1451,7 +1561,7 @@ export function Dashboard() {
                     }}
                     onDrop={handleTimetableDrop}
                   >
-                    <div className="w-full">
+                    <div className="w-full min-w-[1000px]">
                       <div className="mb-1 grid w-full grid-cols-[44px_repeat(6,minmax(0,1fr))] gap-x-1">
                         <div className="flex items-center justify-center font-mono text-[10px] font-semibold text-muted-foreground">TIME</div>
                         {DAYS.map(day => (
@@ -1587,13 +1697,13 @@ export function Dashboard() {
                                         const commitment = personalCommitments.find(item => item.id === ev.personalBlock?.commitmentId);
                                         if (commitment) editCommitment(commitment, day);
                                       }}
-                                      className="block h-full w-full cursor-inherit overflow-hidden p-1.5 pr-4 text-left outline-none"
+                                      className="block h-full w-full cursor-inherit overflow-hidden p-1 pr-3.5 text-left outline-none"
                                     >
-                                      <span className="block truncate text-[10px] font-bold leading-tight">{ev.label}</span>
-                                      <span className="block text-[10px] leading-tight">{ev.startStr} - {ev.endStr}</span>
+                                      <span className="block truncate whitespace-nowrap text-[9px] font-bold leading-tight sm:text-[10px]">{ev.label}</span>
+                                      <span className="block truncate whitespace-nowrap text-[9px] leading-tight sm:text-[10px]">{ev.startStr}–{ev.endStr}</span>
                                       {overlapsAcademic
                                         ? <span className="block text-[9px] font-semibold leading-tight text-amber-800">Overlap</span>
-                                        : <span className="block text-[9px] leading-tight">{ev.personalBlock?.category} · You entered</span>}
+                                        : <span className="block text-[9px] leading-tight">{ev.personalBlock?.category} · {ev.personalBlock?.demoCalendarId ? 'Demo calendar' : 'You entered'}</span>}
                                     </button>
                                     <button
                                       type="button"
@@ -1791,7 +1901,7 @@ export function Dashboard() {
                 <div className="xl:col-span-4 bg-white border border-black/10 rounded-2xl p-5 shadow-sm flex flex-col h-[650px]">
                   <div className="flex items-center justify-between pb-3 border-b mb-3">
                     <div>
-                      <h3 className="font-semibold text-xs">Simulated Course Catalogue</h3>
+                      <h3 ref={catalogueHeadingRef} tabIndex={-1} className="scroll-mt-24 text-xs font-semibold focus:outline-none">Simulated Course Catalogue</h3>
                       <p className="text-[11px] text-muted-foreground">{filteredCatalogue.length} matching courses</p>
                     </div>
                   </div>
@@ -1843,53 +1953,96 @@ export function Dashboard() {
                   {/* Filter Pills */}
                   <div className="flex items-center gap-1.5 flex-wrap mb-3 text-[11px] font-mono">
                     <button
-                      onClick={() => setActiveFilter('all')}
+                      onClick={() => changeCatalogueFilter('all')}
                       className={`px-2 py-1 rounded ${activeFilter === 'all' ? 'bg-[#171717] text-white' : 'bg-[#f5f4ef] text-muted-foreground'}`}
                     >
                       All
                     </button>
                     <button
-                      onClick={() => setActiveFilter('ge')}
+                      onClick={() => changeCatalogueFilter('ge')}
                       className={`px-2 py-1 rounded ${activeFilter === 'ge' ? 'bg-[#171717] text-white' : 'bg-[#f5f4ef] text-muted-foreground'}`}
                     >
                       GE
                     </button>
                     <button
-                      onClick={() => setActiveFilter('stem')}
+                      onClick={() => changeCatalogueFilter('stem')}
                       className={`px-2 py-1 rounded ${activeFilter === 'stem' ? 'bg-[#171717] text-white' : 'bg-[#f5f4ef] text-muted-foreground'}`}
                     >
                       STEM
                     </button>
                     <button
-                      onClick={() => setActiveFilter('coursework')}
+                      onClick={() => changeCatalogueFilter('business')}
+                      className={`px-2 py-1 rounded ${activeFilter === 'business' ? 'bg-[#171717] text-white' : 'bg-[#f5f4ef] text-muted-foreground'}`}
+                    >
+                      Business
+                    </button>
+                    <button
+                      onClick={() => changeCatalogueFilter('coursework')}
                       className={`px-2 py-1 rounded ${activeFilter === 'coursework' ? 'bg-[#171717] text-white' : 'bg-[#f5f4ef] text-muted-foreground'}`}
                     >
                       100% CW
                     </button>
                     <button
-                      onClick={() => setActiveFilter('open')}
+                      onClick={() => changeCatalogueFilter('open')}
                       className={`px-2 py-1 rounded ${activeFilter === 'open' ? 'bg-[#171717] text-white' : 'bg-[#f5f4ef] text-muted-foreground'}`}
                     >
                       Open Seats
                     </button>
                   </div>
 
+                  {activeFilter === 'ge' && (
+                    <div className="mb-3 space-y-2">
+                      <p className="text-[11px] text-muted-foreground">
+                        GE classifications are simulated examples, not official degree advice.
+                      </p>
+                      <div role="group" aria-label="Simulated GE area" className="flex flex-wrap gap-1.5">
+                        {(['all', 'area1', 'area2', 'area3', 'unireq'] as const).map(area => (
+                          <button
+                            key={area}
+                            type="button"
+                            aria-pressed={geAreaFilter === area}
+                            onClick={() => setGEAreaFilter(area)}
+                            className={`rounded px-2 py-1 text-[11px] font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#6c4cff] ${geAreaFilter === area ? 'bg-[#34266f] text-white' : 'bg-[#f5f4ef] text-muted-foreground'}`}
+                          >
+                            {area === 'all' ? 'All areas' : GE_AREA_LABELS[area]}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Catalogue Scroll Area */}
                   <div className="flex-1 overflow-y-auto space-y-2.5 pr-1">
                     {filteredCatalogue.length === 0 ? (
-                      <div className="p-4 text-center space-y-2" role="status">
-                        <p className="text-xs text-muted-foreground">
-                          No courses match "<span className="font-semibold text-foreground">{searchQuery}</span>"
+                      <div className="py-12 text-center" role="status">
+                        <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-slate-100">
+                          <Search className="h-6 w-6 text-slate-400" aria-hidden="true" />
+                        </div>
+                        <h4 className="mb-1 text-sm font-semibold text-slate-900">No matching courses found</h4>
+                        <p className="mx-auto mb-4 max-w-xs text-xs text-slate-500">
+                          {activeFilter === 'ge' && geAreaFilter !== 'all'
+                            ? `No courses match ${GE_AREA_LABELS[geAreaFilter]} and the current search or filters.`
+                            : highlightBridge && activeFilter !== 'all'
+                            ? `No ${activeFilter.toUpperCase()} courses match Transfer / Direct-Entry Core.`
+                            : highlightBridge
+                              ? 'Transfer / Direct-Entry Core is active and hiding non-core courses.'
+                              : activeFilter !== 'all'
+                                ? `No courses found under the '${activeFilter.toUpperCase()}' category.`
+                                : searchQuery.trim()
+                                  ? `No courses match "${searchQuery.trim()}".`
+                                  : 'No courses are currently available.'}
                         </p>
                         <button
                           type="button"
                           onClick={() => {
                             setSearchQuery('');
-                            searchInputRef.current?.focus();
+                            changeCatalogueFilter('all');
+                            setHighlightBridge(false);
                           }}
-                          className="text-xs text-[#6c4cff] font-semibold hover:underline inline-flex items-center gap-1"
+                          className="inline-flex items-center gap-1.5 rounded-lg bg-violet-50 px-3 py-1.5 text-xs font-medium text-violet-700 transition-colors hover:bg-violet-100"
                         >
-                          Clear search
+                          <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
+                          Reset all filters
                         </button>
                       </div>
                     ) : filteredCatalogue.map(course => {
@@ -1897,6 +2050,8 @@ export function Dashboard() {
                       const personalOverlaps = getPersonalOverlaps(course);
                       const isStaged = selectedReplacements.includes(course.code);
                       const creditReason = getStageCreditReason(course);
+                      const geArea = simulatedGEAreas[course.code];
+                      const primary = getResolvedPrimarySection(course, selectedSections);
 
                       return (
                         <div
@@ -1919,16 +2074,24 @@ export function Dashboard() {
                               {course.code}
                             </span>
                             <span className={`font-mono text-[11px] px-1.5 py-0.5 rounded ${
-                              course.quotaAvailable > 0 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                              primary.quotaAvailable === null ? 'bg-amber-50 text-amber-800' : primary.quotaAvailable > 0 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
                             }`}>
-                              {course.quotaAvailable > 0 ? `${course.quotaAvailable} Open` : 'Full'}
+                              {primary.quotaAvailable === null ? 'Availability unknown' : primary.quotaAvailable > 0 ? `${primary.quotaAvailable} seats open` : 'Full · 0 seats'}
                             </span>
                           </div>
 
                           <h5 className="font-semibold text-xs mt-1 leading-snug">{course.title}</h5>
+                          {course.category === 'business' && (
+                            <p className="mt-1 text-[11px] text-muted-foreground">Section availability is a supplied snapshot, not live data.</p>
+                          )}
+                          {course.category === 'ge' && geArea && (
+                            <p className="mt-1 text-[11px] text-muted-foreground">
+                              Simulated GE: {GE_AREA_LABELS[geArea]}
+                            </p>
+                          )}
 
                           <div className="flex items-center justify-between text-[11px] text-muted-foreground mt-2 font-mono">
-                            <span>{course.day} {course.start}–{course.end}</span>
+                            <span>{primary.day ? `${primary.day} ${primary.start}–${primary.end}` : 'Meeting time not provided'}</span>
                             <span>{course.credits.toFixed(1)} CR</span>
                           </div>
 
@@ -1966,7 +2129,7 @@ export function Dashboard() {
                                 onClick={() => setSelectedReplacements(current => current.filter(code => code !== course.code))}
                                 className="h-7 text-[11px] px-2.5"
                               >
-                                Unstage Preview
+                                Remove from Rehearsal
                               </Button>
                             ) : (
                               <Button
@@ -1976,7 +2139,7 @@ export function Dashboard() {
                                 onClick={() => handleStageCourse(course.code)}
                                 className="h-7 text-[11px] px-2.5 bg-[#171717] text-white hover:bg-[#6c4cff]"
                               >
-                                Stage Swap
+                                Add to Rehearsal
                               </Button>
                             )}
                           </div>
@@ -1991,7 +2154,7 @@ export function Dashboard() {
 
           {/* TAB 2: COURSE INSPECTOR & WORKLOAD DIAGNOSTICS (EXACT ORIGINAL HCI FEATURES IN NEW SAAS STYLE) */}
           {activeTab === 'inspector' && (
-            <div className="max-w-5xl mx-auto space-y-6 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-1 motion-safe:duration-200 motion-safe:ease-out">
+            <div className="mx-auto max-w-7xl space-y-6 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-1 motion-safe:duration-200 motion-safe:ease-out">
               {/* Header with Breadcrumb and Dropdown */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-black/10 pb-5">
                 <div>
@@ -2014,11 +2177,11 @@ export function Dashboard() {
                   </p>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex w-full min-w-0 items-center gap-2 sm:w-auto">
                   <label htmlFor="inspector-course-search" className="text-xs font-semibold text-muted-foreground whitespace-nowrap">
                     Find Course:
                   </label>
-                  <div ref={inspectorComboRef} className="relative w-full sm:w-72 md:w-80 lg:w-96">
+                  <div ref={inspectorComboRef} className="relative min-w-0 flex-1 sm:w-72 sm:flex-none md:w-80 lg:w-96">
                     <div className="h-10 w-full rounded-xl border border-[#E4E1DA] bg-white px-3 flex items-center gap-2 transition-colors focus-within:border-[#18181B] focus-within:ring-1 focus-within:ring-[#18181B]">
                       <Search className="h-4 w-4 shrink-0 text-[#71717A]" aria-hidden="true" />
                       <input
@@ -2094,11 +2257,11 @@ export function Dashboard() {
                                     <span className="truncate">{c.title}</span>
                                   </div>
                                   <div className="flex items-center gap-2 text-[11px] text-muted-foreground mt-0.5 font-mono">
-                                    <span>{c.day} {c.start}–{c.end}</span>
+                                    <span>{c.day ? `${c.day} ${c.start}–${c.end}` : 'Meeting time not provided'}</span>
                                     <span>·</span>
                                     <span>{c.credits}.0 CR</span>
                                     <span>·</span>
-                                    <span>CRN {c.crn}</span>
+                                    <span>{c.crn ? `CRN ${c.crn}` : 'CRN not provided'}</span>
                                   </div>
                                 </div>
                                 {c.syllabusPdf && (
@@ -2178,17 +2341,17 @@ export function Dashboard() {
                   </div>
                 </section>
               ) : scheduleFitDiagnostics && workloadMetrics && (
-              /* Main Inspector 2-Column Layout */
+              /* Main Inspector 3-Column Layout */
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                 
-                {/* Left 6 Columns: Metadata, Badges, Workload Meter & Provenance Boundaries */}
-                <div className="lg:col-span-6 space-y-6">
+                {/* Left 5 Columns: Metadata, Badges, Workload Meter & Provenance Boundaries */}
+                <div className="lg:col-span-5 space-y-6">
                   {/* Card 1: Course Big Header & Dynamic Badges */}
                   <div className="bg-white border border-black/10 rounded-2xl p-6 shadow-sm space-y-4">
                     <div className="border-b border-black/10 pb-3">
                       <div className="flex items-center justify-between">
                         <span className="font-mono text-2xl font-bold text-[#171717]">{inspectorCourse.code}</span>
-                        <span className="font-mono text-xs text-muted-foreground">CRN {inspectorCourse.crn}</span>
+                        <span className="font-mono text-xs text-muted-foreground">{getResolvedPrimarySection(inspectorCourse, selectedSections).crn ? `CRN ${getResolvedPrimarySection(inspectorCourse, selectedSections).crn}` : 'CRN not provided'}</span>
                       </div>
                       <h2 className="text-base font-bold text-foreground mt-1">{inspectorCourse.title}</h2>
                       <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -2218,23 +2381,27 @@ export function Dashboard() {
 
                       {/* Grading Split */}
                       <span className="px-2.5 py-1 rounded-md border border-black/10 bg-[#f8f7f3] text-foreground">
-                        [GRADING: {inspectorCourse.courseworkPct}% COURSEWORK / {inspectorCourse.examPct}% EXAM]
+                        {inspectorCourse.examPct === null || inspectorCourse.courseworkPct === null
+                          ? '[ASSESSMENT WEIGHTS: NOT SHOWN]'
+                          : `[GRADING: ${inspectorCourse.courseworkPct}% COURSEWORK / ${inspectorCourse.examPct}% EXAM]`}
                       </span>
 
                       {/* Group Work Risk */}
                       <span className={`px-2.5 py-1 rounded-md border ${
-                        inspectorCourse.groupPct > 20
+                        inspectorCourse.groupPct !== null && inspectorCourse.groupPct > 20
                           ? 'border-red-200 bg-red-50 text-red-700 font-semibold'
                           : 'border-black/10 bg-[#f8f7f3] text-foreground'
                       }`}>
-                        {inspectorCourse.groupPct > 20
+                        {inspectorCourse.groupPct === null ? '[GROUP WORK: UNKNOWN]' : inspectorCourse.groupPct > 20
                           ? `[GROUP-WORK RISK: ${inspectorCourse.groupPct}%]`
                           : `[GROUP WORK: ${inspectorCourse.groupPct}%]`}
                       </span>
 
                       {/* Quota */}
                       <span className="px-2.5 py-1 rounded-md border border-black/10 bg-[#f8f7f3] text-foreground">
-                        [QUOTA: {inspectorCourse.quotaAvailable} / {inspectorCourse.quotaTotal} SEATS]
+                        {getResolvedPrimarySection(inspectorCourse, selectedSections).quotaAvailable === null
+                          ? '[SEAT AVAILABILITY: UNKNOWN]'
+                          : `[SEATS: ${getResolvedPrimarySection(inspectorCourse, selectedSections).quotaAvailable} OPEN · SNAPSHOT]`}
                       </span>
 
                       {/* Credits */}
@@ -2243,7 +2410,11 @@ export function Dashboard() {
                       </span>
 
                       {/* Exam Date Tag */}
-                      {inspectorCourse.examPct > 0 ? (
+                      {inspectorCourse.examPct === null ? (
+                        <span className="px-2.5 py-1 rounded-md border border-amber-200 bg-amber-50 text-amber-800 font-medium">
+                          [ASSESSMENT DETAILS: SEE SYLLABUS]
+                        </span>
+                      ) : inspectorCourse.examPct > 0 ? (
                         <span className="px-2.5 py-1 rounded-md border border-amber-200 bg-amber-50 text-amber-800 font-medium">
                           [EXAM DATE: UNKNOWN · NOT PUBLISHED]
                         </span>
@@ -2261,9 +2432,11 @@ export function Dashboard() {
 
                     {/* Course Description */}
                     <p className="text-xs text-muted-foreground leading-relaxed pt-1">
-                      {courseDescriptions[inspectorCourse.code] || 'Comprehensive foundational principles, computational inquiry, structured project development, and academic assessments.'}
+                      {courseDescriptions[inspectorCourse.code] || 'See the official syllabus for course details.'}
                     </p>
 
+                    {inspectorCourse.academicUnit && <p className="text-xs text-muted-foreground">{inspectorCourse.academicUnit} · {inspectorCourse.level}</p>}
+                    {inspectorCourse.scheduleNote && <p className="text-xs text-muted-foreground">{inspectorCourse.scheduleNote}</p>}
                     {renderSectionSelectors(inspectorCourse)}
 
                     {/* Weekly Workload Hour Distribution (Segmented Meter Bar) */}
@@ -2321,15 +2494,15 @@ export function Dashboard() {
                       </p>
                       <ul className="text-xs space-y-2 text-foreground">
                         <li className="flex items-center justify-between">
-                          <span>Assessment weights ({inspectorCourse.courseworkPct}% Coursework / {inspectorCourse.examPct}% Exam)</span>
+                          <span>{inspectorCourse.examPct === null ? 'Assessment weights: see syllabus' : `Assessment weights (${inspectorCourse.courseworkPct}% Coursework / ${inspectorCourse.examPct}% Exam)`}</span>
                           <span className="font-mono text-[11px] px-1.5 py-0.5 rounded bg-[#f8f7f3] border text-muted-foreground">
-                            Sample syllabus
+                            {inspectorCourse.examPct === null ? 'Not extracted' : 'Sample syllabus'}
                           </span>
                         </li>
                         <li className="flex items-center justify-between">
                           <span>Weekly workload estimate ({workloadMetrics.totalH} hrs/wk)</span>
                           <span className="font-mono text-[11px] px-1.5 py-0.5 rounded bg-[#f8f7f3] border text-muted-foreground">
-                            Sample syllabus
+                            Simulated estimate
                           </span>
                         </li>
                         <li className="flex items-center justify-between">
@@ -2341,7 +2514,7 @@ export function Dashboard() {
                         <li className="flex items-center justify-between">
                           <span>Final examination exact date</span>
                           <span className="font-mono text-[11px] px-1.5 py-0.5 rounded bg-amber-50 text-amber-800 border border-amber-200 font-semibold">
-                            {inspectorCourse.examPct > 0 ? 'Unknown · Not Published' : 'N/A (0% Exam)'}
+                            {inspectorCourse.examPct === 0 ? 'N/A (0% Exam)' : 'Unknown · Not Published'}
                           </span>
                         </li>
                         <li className="flex items-center justify-between">
@@ -2361,123 +2534,90 @@ export function Dashboard() {
                   </div>
                 </div>
 
-                {/* Right 6 Columns: 13-Week Deliverable Map, Prerequisite Tree, Blogs & Action */}
-                <div className="lg:col-span-6 space-y-6">
-                  {/* Card 2: 13-Week Semester Deliverable Map vs Outside Commitments */}
-                  <div className="bg-white border border-black/10 rounded-2xl p-6 shadow-sm space-y-3">
+                {/* Middle 4 Columns: Grade Distribution & Blogs */}
+                <div className="lg:col-span-4 space-y-6">
+                  <section className="space-y-4 rounded-2xl border border-black/10 bg-white p-6 shadow-sm" aria-labelledby="sample-feedback-heading">
                     <div>
-                      <h3 className="text-xs font-bold text-foreground">
-                        13-Week Semester Deliverable Map vs Outside Commitments
-                      </h3>
-                      <p className="text-[11px] text-muted-foreground mt-0.5">
-                        Visualizes deadline collisions against midterm periods and internship days.
+                      <h3 id="sample-feedback-heading" className="text-sm font-bold">Example grades &amp; instructor rating</h3>
+                      <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                        Simulated data and fictional instructors; not official grades or real student feedback.
                       </p>
                     </div>
-
-                    {/* 13-Week Deliverable Table */}
-                    <div className="overflow-x-auto border border-black/10 rounded-xl">
-                      <table className="w-full text-center border-collapse text-[11px] font-mono">
-                        <thead>
-                          <tr className="bg-[#f8f7f3] border-b border-black/10 text-muted-foreground">
-                            <th className="p-2 text-left font-semibold border-r border-black/10 whitespace-nowrap">Stream</th>
-                            {Array.from({ length: 13 }, (_, i) => i + 1).map(w => (
-                              <th key={w} className="p-1.5 min-w-[34px] border-r border-black/5 last:border-r-0">
-                                W{w}
-                              </th>
+                    {feedback && meanGrade !== null ? (
+                      <>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="rounded-xl border border-[#e2d9ff] bg-[#f7f4ff] p-3">
+                            <p className="text-xs font-semibold">Average grade points</p>
+                            <p className="mt-1 font-mono text-lg font-bold text-[#5b21b6]">{meanGrade.toFixed(2)} <span className="text-xs font-medium text-[#52525B]">/ 4.3</span></p>
+                            <p className="text-[11px] text-muted-foreground">{gradeCount} simulated grades</p>
+                          </div>
+                          <div className="rounded-xl border border-black/10 bg-[#f8f7f3] p-3">
+                            <p className="text-xs font-semibold">{feedback.instructor}</p>
+                            <p className="mt-1 font-mono text-lg font-bold">{feedback.instructorRating.toFixed(1)} <span className="text-xs font-medium text-[#52525B]">/ 5</span></p>
+                            <p className="text-[11px] text-muted-foreground">{feedback.ratingCount} simulated ratings</p>
+                          </div>
+                        </div>
+                        <div>
+                          <div className="flex flex-wrap items-baseline justify-between gap-1">
+                            <h4 className="text-xs font-bold">Grade distribution</h4>
+                            <span className="text-[11px] text-muted-foreground">Number of simulated grades</span>
+                          </div>
+                          <div
+                            role="img"
+                            aria-label={`Simulated grade distribution: ${gradeRows.map(row => `${row.grade}: ${row.count}`).join(', ')}.`}
+                            className="mt-6 grid grid-cols-11 gap-1"
+                          >
+                            {gradeRows.map(row => (
+                              <div key={row.grade} className="min-w-0 text-center">
+                                <div className="relative h-28">
+                                  <span
+                                    className="absolute inset-x-0 font-mono text-[10px] font-semibold text-[#52525B]"
+                                    style={{ bottom: `calc(${maxGradeCount ? row.count / maxGradeCount * 100 : 0}% + 4px)` }}
+                                  >{row.count}</span>
+                                  <div
+                                    className="absolute inset-x-0 bottom-0 mx-auto w-full max-w-8 rounded-t bg-[#7c3aed]"
+                                    style={{ height: `${maxGradeCount ? row.count / maxGradeCount * 100 : 0}%` }}
+                                  />
+                                </div>
+                                <div className="border-t border-black/20 pt-1 font-mono text-[10px] font-semibold">{row.grade}</div>
+                              </div>
                             ))}
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {/* Row 1: Course Deliverables */}
-                          <tr className="border-b border-black/5">
-                            <td className="p-2 text-left font-bold text-[#171717] bg-[#fdfcf9] border-r border-black/10 whitespace-nowrap">
-                              {inspectorCourse.code} Deliverables
-                            </td>
-                            {Array.from({ length: 13 }, (_, i) => i + 1).map(w => {
-                              let note = '';
-                              let isStress = false;
-                              if (w === 4) note = 'Asg 1';
-                              else if (w === 7) { note = 'Midterm'; isStress = true; }
-                              else if (w === 9) note = 'Asg 2';
-                              else if (w === 11) { note = 'Project'; isStress = true; }
-                              else if (w === 12) { note = 'Due'; isStress = true; }
-
-                              return (
-                                <td
-                                  key={w}
-                                  className={`p-1.5 border-r border-black/5 last:border-r-0 text-[11px] ${
-                                    isStress ? 'bg-[#fee2e2] text-red-800 font-bold' : ''
-                                  }`}
-                                >
-                                  {note}
-                                </td>
-                              );
-                            })}
-                          </tr>
-
-                          {/* Row 2: Placement & Sprints */}
-                          <tr>
-                            <td className="p-2 text-left font-bold text-[#171717] bg-[#fdfcf9] border-r border-black/10 whitespace-nowrap">
-                              Placement &amp; Sprints
-                            </td>
-                            {Array.from({ length: 13 }, (_, i) => i + 1).map(w => {
-                              let note = '';
-                              let isOverlap = false;
-                              if (w === 7) { note = 'Hackathon'; isOverlap = true; }
-                              else if (w >= 10 && w <= 12) { note = 'Interviews'; isOverlap = true; }
-                              else if (w >= 2 && w <= 13) { note = '16h/w'; }
-
-                              return (
-                                <td
-                                  key={w}
-                                  className={`p-1.5 border-r border-black/5 last:border-r-0 text-[11px] ${
-                                    isOverlap ? 'bg-[#ffedd5] text-amber-900 font-bold' : 'text-muted-foreground'
-                                  }`}
-                                >
-                                  {note}
-                                </td>
-                              );
-                            })}
-                          </tr>
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-
-                  {/* Card 3: Prerequisite & Sequential Progression Tree */}
-                  <div className="bg-white border border-black/10 rounded-2xl p-6 shadow-sm space-y-3">
-                    <h3 className="text-xs font-bold text-foreground">
-                      Prerequisite &amp; Sequential Progression Tree
-                    </h3>
-
-                    <div className="flex items-center justify-between gap-2 p-3 bg-[#f8f7f3] rounded-xl border border-black/5 text-xs font-mono">
-                      {/* Left: Prereq Node */}
-                      <div className="p-2 rounded-lg bg-white border border-black/10 text-center flex-1">
-                        <span className="text-[11px] text-muted-foreground block uppercase">Prerequisites</span>
-                        <span className="font-bold text-foreground">
-                          {inspectorCourse.prereqs.length > 0 ? inspectorCourse.prereqs.join(', ') : 'None'}
-                        </span>
+                          </div>
+                        </div>
+                        <details className="rounded-lg border border-black/10 p-3 text-xs">
+                          <summary className="cursor-pointer font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#7c3aed]">View exact grades and points</summary>
+                          <p className="mt-2 text-[11px] text-muted-foreground">Average uses the example grade-point scale shown below.</p>
+                          <table className="mt-2 w-full text-left">
+                            <thead>
+                              <tr><th className="py-1">Grade</th><th className="py-1">Points</th><th className="py-1">Count</th></tr>
+                            </thead>
+                            <tbody>
+                              {gradeRows.map(row => (
+                                <tr key={row.grade} className="border-t border-black/5">
+                                  <th scope="row" className="py-1 font-medium">{row.grade}</th>
+                                  <td className="py-1">{row.points.toFixed(1)}</td>
+                                  <td className="py-1">{row.count}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </details>
+                      </>
+                    ) : (
+                      <div className="rounded-xl border border-dashed border-[#d9ccff] bg-[#faf9ff] px-4 py-6 text-center">
+                        <svg aria-hidden="true" viewBox="0 0 96 64" className="mx-auto h-16 w-24 motion-safe:animate-[pulse_3s_ease-in-out_infinite]" fill="none">
+                          <path d="M12 53H84" stroke="#a99cca" strokeWidth="2" strokeLinecap="round" />
+                          <rect x="20" y="33" width="12" height="20" rx="3" fill="#e1dafa" />
+                          <rect x="42" y="20" width="12" height="33" rx="3" fill="#d2c5f7" />
+                          <rect x="64" y="27" width="12" height="26" rx="3" fill="#e1dafa" />
+                          <circle cx="72" cy="14" r="8" fill="#fff" stroke="#7c3aed" strokeWidth="2" />
+                          <path d="M72 11V14M72 17H72.1" stroke="#7c3aed" strokeWidth="2" strokeLinecap="round" />
+                        </svg>
+                        <p className="mt-2 text-xs font-semibold">No example grades yet</p>
+                        <p className="mt-1 text-xs leading-relaxed text-muted-foreground">This prototype has no simulated grade or instructor data for this course.</p>
                       </div>
-
-                      <div className="text-muted-foreground font-bold">&rarr;</div>
-
-                      {/* Center: Target Node */}
-                      <div className="p-2.5 rounded-lg bg-[#ece9ff] border border-[#6c4cff] text-center flex-1 shadow-xs">
-                        <span className="text-[11px] text-[#34266f] block uppercase font-bold">Target</span>
-                        <span className="font-bold text-[#171717]">{inspectorCourse.code}</span>
-                      </div>
-
-                      <div className="text-muted-foreground font-bold">&rarr;</div>
-
-                      {/* Right: Next Sequence Node */}
-                      <div className="p-2 rounded-lg bg-white border border-black/10 text-center flex-1">
-                        <span className="text-[11px] text-muted-foreground block uppercase">Next Sequence</span>
-                        <span className="font-bold text-foreground">
-                          {inspectorCourse.category === 'stem' ? 'CS4335 / Major Core' : 'Advanced GE Cluster'}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
+                    )}
+                  </section>
 
                   {/* Card 4: Embedded Reviews & Discussion from CityU Student Blogs */}
                   <div className="bg-white border border-black/10 rounded-2xl p-6 shadow-sm space-y-4">
@@ -2487,7 +2627,7 @@ export function Dashboard() {
                           Reviews &amp; Discussion from CityU Student Blogs
                         </h3>
                         <p className="text-[11px] text-muted-foreground mt-0.5">
-                          Authentic reviews with semester context. No numerical difficulty score is fabricated.
+                          Example posts are simulated. Posts you share stay in this session.
                         </p>
                       </div>
                       <Button
@@ -2501,12 +2641,17 @@ export function Dashboard() {
                     </div>
 
                     <div className="space-y-3">
+                      {inspectorMatchingBlogs.length === 0 && (
+                        <p className="text-xs text-muted-foreground">
+                          No posts for {inspectorCourse.code} yet. Browse all blogs for other courses.
+                        </p>
+                      )}
                       {inspectorMatchingBlogs.map(post => (
                         <div key={post.id} className="p-3.5 rounded-xl border border-black/10 bg-[#f8f7f3] space-y-2 text-left">
                           <div className="flex items-center justify-between text-xs">
                             <span className="font-bold text-[#171717]">&ldquo;{post.title}&rdquo;</span>
                             <span className="font-mono text-[11px] bg-white border border-black/10 px-1.5 py-0.5 rounded text-muted-foreground">
-                              CityU Blogs
+                              {blogPosts.some(example => example.id === post.id) ? 'Simulated example' : 'Shared in this session'}
                             </span>
                           </div>
                           <p className="font-mono text-[11px] text-muted-foreground">
@@ -2562,6 +2707,101 @@ export function Dashboard() {
                   </div>
                 </div>
 
+                {/* Right 3 Columns: Prerequisite & Sequential Progression Tree */}
+                <div className="lg:col-span-3 space-y-6">
+                  <div className="bg-white border border-black/10 rounded-2xl p-6 shadow-sm space-y-3">
+                    <h3 className="text-xs font-bold text-foreground">
+                      Prerequisites &amp; Course Progression
+                    </h3>
+
+                    <div className="flex flex-col items-center gap-2 rounded-xl border border-black/5 bg-[#f8f7f3] p-3 font-mono text-xs">
+                      <div className="w-full max-w-64 rounded-lg border border-black/10 bg-white p-2 text-center">
+                        <span className="text-[11px] text-muted-foreground block uppercase">Prerequisites</span>
+                        <span className="font-bold text-foreground">
+                          {inspectorCourse.prerequisiteNote || (inspectorCourse.prereqs.length > 0 ? inspectorCourse.prereqs.join(', ') : 'None')}
+                        </span>
+                      </div>
+
+                      <div className="font-bold text-muted-foreground" aria-hidden="true">&darr;</div>
+
+                      <div className="w-full max-w-64 rounded-lg border border-[#6c4cff] bg-[#ece9ff] p-2.5 text-center shadow-xs">
+                        <span className="text-[11px] text-[#34266f] block uppercase font-bold">Target</span>
+                        <span className="font-bold text-[#171717]">{inspectorCourse.code}</span>
+                      </div>
+
+                      <div className="font-bold text-muted-foreground" aria-hidden="true">&darr;</div>
+
+                      <div className="w-full max-w-64 rounded-lg border border-black/10 bg-white p-2 text-center">
+                        <span className="text-[11px] text-muted-foreground block uppercase">Next Course</span>
+                        <span className="font-bold text-foreground">
+                          Not specified
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <section className="min-w-0 space-y-3 rounded-2xl border border-black/10 bg-white p-6 shadow-sm lg:col-span-12" aria-labelledby="deliverable-map-heading">
+                  <div>
+                    <h3 id="deliverable-map-heading" className="text-xs font-bold text-foreground">
+                      13-Week Semester Deliverable Map vs Outside Commitments
+                    </h3>
+                    <p className="mt-0.5 text-[11px] text-muted-foreground">
+                      Illustrative example; deadlines and outside commitments are not synced.
+                    </p>
+                  </div>
+                  <div role="region" aria-label="13-week deliverable map. Scroll horizontally to view all weeks." tabIndex={0} className="overflow-x-auto rounded-xl border border-black/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#7c3aed]">
+                    <table className="w-full border-collapse text-center font-mono text-[11px]">
+                      <thead>
+                        <tr className="border-b border-black/10 bg-[#f8f7f3] text-muted-foreground">
+                          <th className="whitespace-nowrap border-r border-black/10 p-2 text-left font-semibold">Stream</th>
+                          {Array.from({ length: 13 }, (_, i) => i + 1).map(w => (
+                            <th key={w} className="min-w-[34px] border-r border-black/5 p-1.5 last:border-r-0">W{w}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr className="border-b border-black/5">
+                          <td className="whitespace-nowrap border-r border-black/10 bg-[#fdfcf9] p-2 text-left font-bold text-[#171717]">
+                            {inspectorCourse.code} Deliverables
+                          </td>
+                          {Array.from({ length: 13 }, (_, i) => i + 1).map(w => {
+                            let note = '';
+                            let isStress = false;
+                            if (w === 4) note = 'Asg 1';
+                            else if (w === 7) { note = 'Midterm'; isStress = true; }
+                            else if (w === 9) note = 'Asg 2';
+                            else if (w === 11) { note = 'Project'; isStress = true; }
+                            else if (w === 12) { note = 'Due'; isStress = true; }
+                            return (
+                              <td key={w} className={`border-r border-black/5 p-1.5 text-[11px] last:border-r-0 ${
+                                isStress ? 'bg-[#fee2e2] font-bold text-red-800' : ''
+                              }`}>{note}</td>
+                            );
+                          })}
+                        </tr>
+                        <tr>
+                          <td className="whitespace-nowrap border-r border-black/10 bg-[#fdfcf9] p-2 text-left font-bold text-[#171717]">
+                            Placement &amp; Sprints
+                          </td>
+                          {Array.from({ length: 13 }, (_, i) => i + 1).map(w => {
+                            let note = '';
+                            let isOverlap = false;
+                            if (w === 7) { note = 'Hackathon'; isOverlap = true; }
+                            else if (w >= 10 && w <= 12) { note = 'Interviews'; isOverlap = true; }
+                            else if (w >= 2 && w <= 13) { note = '16h/w'; }
+                            return (
+                              <td key={w} className={`border-r border-black/5 p-1.5 text-[11px] last:border-r-0 ${
+                                isOverlap ? 'bg-[#ffedd5] font-bold text-amber-900' : 'text-muted-foreground'
+                              }`}>{note}</td>
+                            );
+                          })}
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground lg:hidden">Scroll the map horizontally to see all 13 weeks.</p>
+                </section>
               </div>
               )}
             </div>
@@ -2574,7 +2814,7 @@ export function Dashboard() {
                 <>
                   <div className="flex flex-col gap-4 border-b border-black/10 pb-5 sm:flex-row sm:items-end sm:justify-between">
                     <div>
-                      <h1 className="text-2xl font-bold tracking-tight md:text-3xl">CityU Course Experience Blogs</h1>
+                      <h1 className="text-2xl font-bold tracking-tight md:text-3xl">CityU Student Life Blogs</h1>
                       <p className="mt-1 text-xs text-muted-foreground">
                         Example posts and verification labels are simulated, not university checks. Shared posts stay in this session.
                       </p>
@@ -2584,7 +2824,7 @@ export function Dashboard() {
                       onClick={() => setShareExperienceOpen(true)}
                       className="h-9 shrink-0 bg-[#171717] text-xs font-semibold text-white hover:bg-[#6c4cff]"
                     >
-                      + Share Course Experience
+                      + Share an Experience
                     </Button>
                   </div>
 
@@ -2592,16 +2832,16 @@ export function Dashboard() {
                     <Search className="h-4 w-4 shrink-0 text-[#71717A]" aria-hidden="true" />
                     <input
                       value={blogSearchQuery}
-                      onChange={event => setBlogSearchQuery(event.target.value)}
-                      aria-label="Search course experience blogs"
-                      placeholder="Search course code, topic, or author (e.g., CS3334, EE4213)"
+                      onChange={event => { setBlogSearchQuery(event.target.value); setBlogPage(1); }}
+                      aria-label="Search student life blogs"
+                      placeholder="Search course code, topic, or author"
                       className="h-full min-w-0 flex-1 bg-transparent text-xs outline-none placeholder:text-[#71717A]"
                     />
                     {blogSearchQuery && (
                       <button
                         type="button"
                         aria-label="Clear blog search"
-                        onClick={() => setBlogSearchQuery('')}
+                        onClick={() => { setBlogSearchQuery(''); setBlogPage(1); }}
                         className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded text-black/50 transition hover:bg-black/5 hover:text-[#18181B] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[#18181B]"
                       >
                         <X className="h-4 w-4" aria-hidden="true" />
@@ -2609,35 +2849,34 @@ export function Dashboard() {
                     )}
                   </div>
 
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div className="flex flex-wrap gap-1.5 text-[11px] font-mono">
-                      {([
-                        ['all', 'All'],
-                        ['stem', 'STEM'],
-                        ['ge', 'GE'],
-                        ['workload', 'Workload'],
-                        ['transfer', 'Direct-Entry']
-                      ] as const).map(([value, label]) => (
-                        <button
-                          key={value}
-                          type="button"
-                          onClick={() => setBlogFilter(value)}
-                          aria-pressed={blogFilter === value}
-                          className={`rounded px-2.5 py-1.5 font-semibold transition ${
-                            blogFilter === value ? 'bg-[#171717] text-white' : 'bg-[#f5f4ef] text-muted-foreground hover:bg-[#eeece6]'
-                          }`}
-                        >
-                          {label}
-                        </button>
-                      ))}
-                    </div>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <label className="flex items-center gap-2 text-xs font-semibold text-[#52525B]">
+                      <span>Topic</span>
+                      <select
+                        value={blogFilter}
+                        onChange={event => {
+                          const value = event.target.value;
+                          if (value === 'all' || isBlogTopic(value)) {
+                            setBlogFilter(value);
+                            setBlogPage(1);
+                          }
+                        }}
+                        className="h-9 rounded-lg border border-[#E4E1DA] bg-white px-2.5 text-xs font-medium text-[#18181B] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#18181B]"
+                      >
+                        <option value="all">All topics</option>
+                        {BLOG_TOPICS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                      </select>
+                    </label>
                     <label className="flex items-center gap-2 text-xs font-semibold text-[#52525B]">
                       <span>Verification</span>
                       <select
                         value={blogVerificationFilter}
                         onChange={event => {
                           const value = event.target.value;
-                          if (value === 'all' || value === 'verified' || value === 'pending') setBlogVerificationFilter(value);
+                          if (value === 'all' || value === 'verified' || value === 'pending') {
+                            setBlogVerificationFilter(value);
+                            setBlogPage(1);
+                          }
                         }}
                         className="h-9 rounded-lg border border-[#E4E1DA] bg-white px-2.5 text-xs font-medium text-[#18181B] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#18181B]"
                       >
@@ -2648,6 +2887,9 @@ export function Dashboard() {
                     </label>
                   </div>
 
+                  <p className="text-xs text-muted-foreground" aria-live="polite">
+                    {filteredBlogPosts.length} {filteredBlogPosts.length === 1 ? 'post' : 'posts'} · Page {currentBlogPage} of {blogPageCount}
+                  </p>
                   {filteredBlogPosts.length === 0 ? (
                     <div className="space-y-2 rounded-xl border border-dashed border-[#E4E1DA] bg-white p-8 text-center" role="status">
                       <p className="text-sm text-muted-foreground">
@@ -2659,6 +2901,7 @@ export function Dashboard() {
                           setBlogSearchQuery('');
                           setBlogFilter('all');
                           setBlogVerificationFilter('all');
+                          setBlogPage(1);
                         }}
                         className="text-xs font-semibold text-[#4F46E5] hover:underline"
                       >
@@ -2666,8 +2909,9 @@ export function Dashboard() {
                       </button>
                     </div>
                   ) : (
+                    <>
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                      {filteredBlogPosts.map(post => (
+                      {visibleBlogPosts.map(post => (
                         <article
                           key={post.id}
                           role="button"
@@ -2715,6 +2959,7 @@ export function Dashboard() {
                                     setBlogSearchQuery(post.courseCode || '');
                                     setBlogFilter('all');
                                     setBlogVerificationFilter('all');
+                                    setBlogPage(1);
                                   }}
                                   onKeyDown={event => event.stopPropagation()}
                                   aria-label={`Filter posts for ${post.courseCode}`}
@@ -2734,12 +2979,12 @@ export function Dashboard() {
                             {post.verificationStatus === 'verified' ? 'Verified (demo)' : 'Pending (demo)'}
                           </span>
                           <h3 className="text-base font-bold leading-snug">{post.title}</h3>
-                          <p className="text-xs text-muted-foreground">{post.subtitle}</p>
+                          {post.subtitle && <p className="text-xs text-muted-foreground">{post.subtitle}</p>}
                           <p className="text-xs leading-relaxed text-muted-foreground">{post.summary}</p>
-                          <div className="rounded-r-lg border-l-4 border-[#6c4cff] bg-[#f8f7f3] p-3 text-xs leading-relaxed text-muted-foreground">
+                          {post.authorMeta && <div className="rounded-r-lg border-l-4 border-[#6c4cff] bg-[#f8f7f3] p-3 text-xs leading-relaxed text-muted-foreground">
                             <span className="font-semibold text-[#171717]">Context when written: </span>
                             {post.authorMeta}
-                          </div>
+                          </div>}
                           <div className="flex items-center justify-between gap-3 pt-1">
                             <button
                               type="button"
@@ -2773,6 +3018,14 @@ export function Dashboard() {
                         </article>
                       ))}
                     </div>
+                    {blogPageCount > 1 && (
+                      <nav aria-label="Blog pages" className="flex items-center justify-center gap-3">
+                        <Button type="button" variant="outline" disabled={currentBlogPage === 1} onClick={() => setBlogPage(currentBlogPage - 1)}>Previous</Button>
+                        <span className="text-xs font-semibold">Page {currentBlogPage} of {blogPageCount}</span>
+                        <Button type="button" variant="outline" disabled={currentBlogPage === blogPageCount} onClick={() => setBlogPage(currentBlogPage + 1)}>Next</Button>
+                      </nav>
+                    )}
+                    </>
                   )}
                 </>
               ) : activeBlogPost ? (
@@ -2789,7 +3042,7 @@ export function Dashboard() {
                     <article id={`blog-post-${activeBlogPost.id}`} className="space-y-5 rounded-2xl border border-black/10 bg-white p-5 shadow-sm md:p-7">
                       <header className="space-y-3 border-b border-black/10 pb-4">
                         <h1 className="text-2xl font-bold leading-tight md:text-3xl">{activeBlogPost.title}</h1>
-                        <p className="text-sm text-muted-foreground">{activeBlogPost.subtitle}</p>
+                        {activeBlogPost.subtitle && <p className="text-sm text-muted-foreground">{activeBlogPost.subtitle}</p>}
                         <div className="flex flex-wrap items-center gap-2 text-xs">
                           <span className="font-semibold">{activeBlogPost.author}</span>
                           <span className="text-muted-foreground">· {activeBlogPost.date}</span>
@@ -2803,14 +3056,20 @@ export function Dashboard() {
                         </div>
                       </header>
 
-                      <div className="rounded-r-lg border-l-4 border-[#6c4cff] bg-[#f8f7f3] p-3 text-xs leading-relaxed text-muted-foreground">
+                      {activeBlogPost.authorMeta && <div className="rounded-r-lg border-l-4 border-[#6c4cff] bg-[#f8f7f3] p-3 text-xs leading-relaxed text-muted-foreground">
                         <span className="font-semibold text-[#171717]">Context when written: </span>
                         {activeBlogPost.authorMeta}
-                      </div>
+                      </div>}
 
                       <div className="space-y-4 text-sm leading-relaxed text-foreground">
                         {activeBlogPost.body.map((paragraph, index) => <p key={index}>{paragraph}</p>)}
                       </div>
+                      {activeBlogPost.tip && (
+                        <aside className="rounded-lg border border-[#d9ccff] bg-[#f7f5ff] p-4 text-sm">
+                          <h2 className="font-semibold">Tip for other students</h2>
+                          <p className="mt-1 whitespace-pre-wrap leading-relaxed">{activeBlogPost.tip}</p>
+                        </aside>
+                      )}
 
                       <div className="flex flex-wrap gap-1.5">
                         {activeBlogPost.tags.map(tag => (
@@ -2971,7 +3230,7 @@ export function Dashboard() {
                   <div ref={shareExperienceRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="share-experience-title" className="max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-2xl border border-black/10 bg-white p-6 shadow-2xl outline-none motion-safe:animate-in motion-safe:fade-in motion-safe:zoom-in-95 motion-safe:duration-200">
                     <div className="mb-5 flex items-start justify-between gap-4">
                       <div>
-                        <h2 id="share-experience-title" className="text-lg font-bold">Share Course Experience</h2>
+                        <h2 id="share-experience-title" className="text-lg font-bold">Share an Experience</h2>
                         <p className="mt-1 text-xs text-muted-foreground">No login or ratings required. Posts stay in this session and are not submitted for review.</p>
                       </div>
                       <button type="button" aria-label="Close share form" onClick={() => setShareExperienceOpen(false)} className="rounded p-1 text-muted-foreground hover:bg-black/5 hover:text-foreground">
@@ -2986,17 +3245,19 @@ export function Dashboard() {
                         const body = shareBody.trim().split(/\n\s*\n/).filter(Boolean);
                         const courseCode = shareCourseCode.trim().toUpperCase();
                         const title = shareTitle.trim();
-                        const subtitle = shareSubtitle.trim();
-                        const authorMeta = shareContext.trim();
-                        if (!courseCode || !title || !subtitle || !authorMeta || body.length === 0) {
-                          toast.error('Complete every field before sharing your course experience.');
+                        if (!shareType || !shareCategory || (shareType === 'course' && !courseCode) || !title || body.length === 0) {
+                          toast.error('Complete all required fields before sharing your experience.');
                           return;
                         }
+                        const authorMeta = shareType === 'course'
+                          ? [shareSemester.trim(), shareWorkload.trim()].filter(Boolean).join(' · ')
+                          : shareContext.trim();
+                        const tip = shareTip.trim();
 
                         const newPost: BlogPost = {
                           id: `post-${Date.now()}`,
                           title,
-                          subtitle,
+                          subtitle: '',
                           author: "Marcus Li '28",
                           initials: 'ML',
                           avatarUrl: './avatars/marcus.svg',
@@ -3011,58 +3272,93 @@ export function Dashboard() {
                           body,
                           comments: [],
                           tags: [shareCategory],
-                          courseCode
+                          courseCode: shareType === 'course' ? courseCode : undefined,
+                          tip: tip || undefined
                         };
                         setPosts(current => [newPost, ...current]);
                         setBlogSearchQuery('');
                         setBlogFilter('all');
                         setBlogVerificationFilter('all');
+                        setBlogPage(1);
                         setShareExperienceOpen(false);
+                        setShareType('');
                         setShareCourseCode('');
                         setShareTitle('');
-                        setShareSubtitle('');
-                        setShareCategory('stem');
+                        setShareCategory('');
                         setShareContext('');
+                        setShareSemester('');
+                        setShareWorkload('');
                         setShareBody('');
+                        setShareTip('');
+                        toast.success('Post added for this session.');
                       }}
                     >
+                      <fieldset className="space-y-2">
+                        <legend className="text-xs font-semibold">What is your experience about? <span className="text-muted-foreground">(required)</span></legend>
+                        <div className="grid gap-2 sm:grid-cols-2">
+                          {([
+                            ['course', 'A course', 'Classes, assignments or study'],
+                            ['life', 'Student life', 'Campus, food, housing or activities']
+                          ] as const).map(([value, label, hint]) => (
+                            <label key={value} className={`flex cursor-pointer items-start gap-2 rounded-lg border p-3 text-xs ${shareType === value ? 'border-[#6c4cff] bg-[#f7f5ff]' : 'border-[#E4E1DA] bg-white'}`}>
+                              <input type="radio" name="experience-type" value={value} checked={shareType === value} onChange={() => setShareType(value)} required className="mt-0.5 accent-[#6c4cff]" />
+                              <span><span className="block font-semibold">{label}</span><span className="mt-1 block text-muted-foreground">{hint}</span></span>
+                            </label>
+                          ))}
+                        </div>
+                      </fieldset>
                       <label className="block space-y-1.5 text-xs font-semibold">
-                        <span>Course Code</span>
-                        <input required value={shareCourseCode} onChange={event => setShareCourseCode(event.target.value)} placeholder="e.g., EE4213" className="h-9 w-full rounded-lg border border-[#E4E1DA] px-3 font-normal outline-none focus:border-[#18181B] focus:ring-1 focus:ring-[#18181B]" />
-                      </label>
-                      <label className="block space-y-1.5 text-xs font-semibold">
-                        <span>Post Title</span>
-                        <input required value={shareTitle} onChange={event => setShareTitle(event.target.value)} placeholder="A clear, specific title" className="h-9 w-full rounded-lg border border-[#E4E1DA] px-3 font-normal outline-none focus:border-[#18181B] focus:ring-1 focus:ring-[#18181B]" />
-                      </label>
-                      <label className="block space-y-1.5 text-xs font-semibold">
-                        <span>Subtitle</span>
-                        <input required value={shareSubtitle} onChange={event => setShareSubtitle(event.target.value)} placeholder="A one-line summary" className="h-9 w-full rounded-lg border border-[#E4E1DA] px-3 font-normal outline-none focus:border-[#18181B] focus:ring-1 focus:ring-[#18181B]" />
-                      </label>
-                      <label className="block space-y-1.5 text-xs font-semibold">
-                        <span>Category Tag</span>
+                        <span>Topic <span className="text-muted-foreground">(required)</span></span>
                         <select
+                          required
                           value={shareCategory}
                           onChange={event => {
                             const value = event.target.value;
-                            if (value === 'stem' || value === 'ge' || value === 'workload' || value === 'transfer') {
-                              setShareCategory(value);
-                            }
+                            if (value === '' || isBlogTopic(value)) setShareCategory(value);
                           }}
                           className="h-9 w-full rounded-lg border border-[#E4E1DA] bg-white px-3 font-normal outline-none focus:border-[#18181B] focus:ring-1 focus:ring-[#18181B]"
                         >
-                          <option value="stem">STEM</option>
-                          <option value="ge">GE</option>
-                          <option value="workload">Workload</option>
-                          <option value="transfer">Direct-Entry</option>
+                          <option value="">Choose a topic</option>
+                          {BLOG_TOPICS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
                         </select>
                       </label>
+                      {shareType === 'course' && (
+                        <label className="block space-y-1.5 text-xs font-semibold">
+                          <span>Course code <span className="text-muted-foreground">(required)</span></span>
+                          <input required list="share-course-options" value={shareCourseCode} onChange={event => setShareCourseCode(event.target.value)} placeholder="e.g., CB2100" className="h-9 w-full rounded-lg border border-[#E4E1DA] px-3 font-normal outline-none focus:border-[#18181B] focus:ring-1 focus:ring-[#18181B]" />
+                          <datalist id="share-course-options">{masterSchedule.map(course => <option key={course.code} value={course.code}>{course.title}</option>)}</datalist>
+                          <span className="block font-normal text-muted-foreground">{selectedShareCourse ? selectedShareCourse.title : 'Enter a course code; suggestions show matching course titles.'}</span>
+                        </label>
+                      )}
                       <label className="block space-y-1.5 text-xs font-semibold">
-                        <span>Semester &amp; Weekly Hours Context</span>
-                        <input required value={shareContext} onChange={event => setShareContext(event.target.value)} placeholder="e.g., Sem A 2026/27 · Year 3 CDE · ~10h/wk" className="h-9 w-full rounded-lg border border-[#E4E1DA] px-3 font-normal outline-none focus:border-[#18181B] focus:ring-1 focus:ring-[#18181B]" />
+                        <span>Post title <span className="text-muted-foreground">(required)</span></span>
+                        <input required value={shareTitle} onChange={event => setShareTitle(event.target.value)} placeholder="A clear, specific title" className="h-9 w-full rounded-lg border border-[#E4E1DA] px-3 font-normal outline-none focus:border-[#18181B] focus:ring-1 focus:ring-[#18181B]" />
                       </label>
                       <label className="block space-y-1.5 text-xs font-semibold">
-                        <span>Reflection Body</span>
-                        <textarea required value={shareBody} onChange={event => setShareBody(event.target.value)} rows={5} placeholder="Write your course experience. Separate paragraphs with a blank line." className="w-full rounded-lg border border-[#E4E1DA] p-3 font-normal outline-none focus:border-[#18181B] focus:ring-1 focus:ring-[#18181B]" />
+                        <span>Your experience <span className="text-muted-foreground">(required)</span></span>
+                        <textarea required value={shareBody} onChange={event => setShareBody(event.target.value)} rows={5} placeholder={shareType === 'course' ? 'What was the course like for you?' : 'What happened, and what was it like for you?'} className="w-full rounded-lg border border-[#E4E1DA] p-3 font-normal outline-none focus:border-[#18181B] focus:ring-1 focus:ring-[#18181B]" />
+                      </label>
+                      {shareType === 'course' && (
+                        <>
+                          <label className="block space-y-1.5 text-xs font-semibold">
+                            <span>Semester <span className="text-muted-foreground">(optional)</span></span>
+                            <input value={shareSemester} onChange={event => setShareSemester(event.target.value)} placeholder="e.g., Semester A 2026/27" className="h-9 w-full rounded-lg border border-[#E4E1DA] px-3 font-normal outline-none focus:border-[#18181B] focus:ring-1 focus:ring-[#18181B]" />
+                          </label>
+                          <label className="block space-y-1.5 text-xs font-semibold">
+                            <span>Workload context <span className="text-muted-foreground">(optional)</span></span>
+                            <input value={shareWorkload} onChange={event => setShareWorkload(event.target.value)} placeholder="e.g., Around 5 hours per week" className="h-9 w-full rounded-lg border border-[#E4E1DA] px-3 font-normal outline-none focus:border-[#18181B] focus:ring-1 focus:ring-[#18181B]" />
+                          </label>
+                        </>
+                      )}
+                      {shareType === 'life' && (
+                        <label className="block space-y-1.5 text-xs font-semibold">
+                          <span>Place or context <span className="text-muted-foreground">(optional)</span></span>
+                          <input value={shareContext} onChange={event => setShareContext(event.target.value)} placeholder="e.g., Student residence or campus dining" className="h-9 w-full rounded-lg border border-[#E4E1DA] px-3 font-normal outline-none focus:border-[#18181B] focus:ring-1 focus:ring-[#18181B]" />
+                        </label>
+                      )}
+                      <label className="block space-y-1.5 text-xs font-semibold">
+                        <span>Tip for other students <span className="text-muted-foreground">(optional)</span></span>
+                        <textarea value={shareTip} onChange={event => setShareTip(event.target.value)} rows={2} placeholder="Anything you would suggest to someone else?" className="w-full rounded-lg border border-[#E4E1DA] p-3 font-normal outline-none focus:border-[#18181B] focus:ring-1 focus:ring-[#18181B]" />
                       </label>
                       <div className="flex justify-end gap-2 border-t border-black/10 pt-4">
                         <Button type="button" variant="outline" onClick={() => setShareExperienceOpen(false)} className="text-xs">
@@ -3124,6 +3420,60 @@ export function Dashboard() {
               </button>
             </div>
 
+            <section aria-labelledby="demo-calendar-heading" className="mt-5 rounded-lg border border-[#E4E1DA] bg-[#F7F5F0] p-3">
+              <h3 id="demo-calendar-heading" className="text-sm font-semibold">Google Calendar demo</h3>
+              <p className="mt-1 text-xs leading-relaxed text-[#52525B]">Fictional events only. No Google account is connected and no calendar data is accessed.</p>
+              {!demoCalendarConnected ? (
+                <button type="button" onClick={() => setDemoCalendarConnected(true)} className="mt-3 rounded-lg border border-[#18181B] bg-white px-3 py-2 text-xs font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#18181B]">
+                  Connect demo calendar
+                </button>
+              ) : (
+                <div className="mt-3 space-y-3">
+                  <p className="text-xs font-semibold">Demo connected · Select weekly examples to import</p>
+                  {DEMO_CALENDAR_EVENTS.map(event => {
+                    const imported = personalCommitments.some(commitment => commitment.demoCalendarId === event.demoCalendarId);
+                    return (
+                      <label key={event.demoCalendarId} className="flex items-start gap-2 text-xs">
+                        <input
+                          type="checkbox"
+                          checked={!imported && selectedDemoEvents.includes(event.demoCalendarId)}
+                          disabled={imported}
+                          onChange={change => setSelectedDemoEvents(current => change.target.checked
+                            ? [...current, event.demoCalendarId]
+                            : current.filter(id => id !== event.demoCalendarId))}
+                          className="mt-0.5 accent-[#18181B]"
+                        />
+                        <span><strong>{event.label}</strong> · Weekly {event.days.join(', ')} {formatHour(event.startHour)}–{formatHour(event.endHour)}{imported ? ' · Already imported' : ''}</span>
+                      </label>
+                    );
+                  })}
+                  <p className="text-xs text-[#52525B]">Example appointment · One-off event · Not importable: this timetable supports weekly blocks only.</p>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      disabled={!selectedDemoEvents.some(id => !personalCommitments.some(commitment => commitment.demoCalendarId === id))}
+                      onClick={() => {
+                        const selected = DEMO_CALENDAR_EVENTS.filter(event => selectedDemoEvents.includes(event.demoCalendarId) &&
+                          !personalCommitments.some(commitment => commitment.demoCalendarId === event.demoCalendarId));
+                        if (!selected.length) return;
+                        setPersonalCommitments(current => [...current, ...selected.map(event => ({
+                          ...event, days: [...event.days], id: crypto.randomUUID(), enabled: true
+                        }))]);
+                        setSelectedDemoEvents([]);
+                        setBlockPersonalTime(true);
+                        toast.success(`${selected.length} demo ${selected.length === 1 ? 'event' : 'events'} imported as weekly commitments.`);
+                      }}
+                      className="rounded-lg bg-[#18181B] px-3 py-2 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#18181B]"
+                    >Import selected</button>
+                    <button type="button" onClick={() => { setDemoCalendarConnected(false); setSelectedDemoEvents([]); }} className="rounded-lg border border-[#18181B] bg-white px-3 py-2 text-xs font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#18181B]">
+                      Disconnect demo
+                    </button>
+                  </div>
+                  <p className="text-xs text-[#52525B]">Disconnecting keeps imported commitments. Remove them individually if needed.</p>
+                </div>
+              )}
+            </section>
+
             <div className="mt-5 space-y-2">
               <h3 className="text-sm font-semibold">Saved commitments</h3>
               {personalCommitments.length === 0 ? (
@@ -3155,6 +3505,7 @@ export function Dashboard() {
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="text-xs font-semibold">{commitment.label}</span>
                       <span className="rounded-md border border-[#E4E1DA] bg-[#F7F5F0] px-2 py-0.5 text-xs text-[#18181B]">{commitment.category}</span>
+                      {commitment.demoCalendarId && <span className="text-xs text-[#52525B]">Demo calendar</span>}
                     </div>
                     <div className="mt-2 flex flex-wrap items-center gap-1 text-xs text-[#52525B]">
                       {commitment.days.map(day => <span key={day} className="rounded border border-[#E4E1DA] px-1.5 py-0.5">{day}</span>)}
@@ -3200,7 +3551,8 @@ export function Dashboard() {
                   const updated: PersonalCommitment = {
                     id: editingCommitmentId && !editingCommitmentDay ? editingCommitmentId : crypto.randomUUID(),
                     label, category: newCategory, days: [...newDays],
-                    startHour: newStartHour, endHour: newEndHour, enabled: edited?.enabled ?? true
+                    startHour: newStartHour, endHour: newEndHour, enabled: edited?.enabled ?? true,
+                    demoCalendarId: edited?.demoCalendarId
                   };
                   if (!edited) return [...current, updated];
                   if (!editingCommitmentDay) return current.map(item => item.id === edited.id ? updated : item);
@@ -3214,6 +3566,7 @@ export function Dashboard() {
                 setNewLabel('');
                 setEditingCommitmentId(null);
                 setEditingCommitmentDay(null);
+                toast.success(editingCommitment ? 'Commitment updated.' : 'Commitment added.');
               }}
             >
               <h3 className="text-sm font-semibold">{editingCommitmentId ? editingCommitmentDay ? `Edit ${editingCommitmentDay} block` : 'Edit commitment series' : 'Add a commitment'}</h3>
@@ -3286,6 +3639,30 @@ export function Dashboard() {
                     {Array.from({ length: (23 - newStartHour) * 2 }, (_, index) => newStartHour + 0.5 + index / 2).map(hour => <option key={hour} value={hour}>{formatHour(hour)}</option>)}
                   </select>
                 </label>
+              </div>
+              <div role="status" aria-live="polite" className={`rounded-lg border p-3 text-xs leading-relaxed ${
+                newDays.length > 0 && commitmentPreviewConflicts.length > 0
+                  ? 'border-amber-300 bg-amber-50 text-amber-950'
+                  : 'border-[#E4E1DA] bg-[#F7F5F0] text-[#18181B]'
+              }`}>
+                <p className="font-semibold">Course conflict preview</p>
+                {newDays.length === 0 || newEndHour <= newStartHour ? (
+                  <p className="mt-1">Choose repeat days and a valid time to check your timetable.</p>
+                ) : commitmentPreviewConflicts.length === 0 ? (
+                  <p className="mt-1">No conflicts with enrolled or staged courses in this draft.</p>
+                ) : (
+                  <>
+                    <p className="mt-1">Overlaps with enrolled or staged courses in this draft:</p>
+                    <ul className="mt-1 list-disc pl-4">
+                      {commitmentPreviewConflicts.map(({ code, meeting }, index) => (
+                        <li key={`${code}-${meeting.day}-${meeting.start}-${meeting.section}-${index}`}>
+                          {code} ({meeting.section}) · {meeting.day} {meeting.start}–{meeting.end}
+                        </li>
+                      ))}
+                    </ul>
+                    <p className="mt-1">You can still save this commitment.</p>
+                  </>
+                )}
               </div>
               <button
                 type="submit"
