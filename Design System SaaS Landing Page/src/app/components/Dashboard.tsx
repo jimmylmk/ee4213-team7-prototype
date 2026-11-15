@@ -321,7 +321,6 @@ export function Dashboard() {
   const commitmentTitleRef = useRef<HTMLInputElement>(null);
   const shareExperienceRef = useRef<HTMLDivElement>(null);
   const profileMenuRef = useRef<HTMLDivElement>(null);
-  const [navHistory, setNavHistory] = useState<Array<{ tab: typeof activeTab; postId: string | null }>>([]);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
 
@@ -408,36 +407,14 @@ export function Dashboard() {
 
   // Tab changes go through the URL (push), and the effect above mirrors them into state
   const changeTab = (nextTab: DashboardTab) => {
-    if (activeTab !== nextTab) {
-      setNavHistory(history => [...history, { tab: activeTab, postId: openPostId }]);
-    }
     setActiveTab(nextTab);
     setSearchParams(nextTab === 'rehearsal' ? {} : { view: nextTab });
   };
 
   const handleOpenPost = (postId: string) => {
-    if (activeTab !== 'blogs' || openPostId !== postId) {
-      setNavHistory(history => [...history, { tab: activeTab, postId: openPostId }]);
-    }
     setActiveTab('blogs');
     setOpenPostId(postId);
     setSearchParams({ view: 'blogs' });
-  };
-
-  const handleStepBack = () => {
-    const previous = navHistory[navHistory.length - 1];
-    if (previous) {
-      setNavHistory(history => history.slice(0, -1));
-      setActiveTab(previous.tab);
-      setOpenPostId(previous.postId);
-      setSearchParams(previous.tab === 'rehearsal' ? {} : { view: previous.tab });
-      return;
-    }
-    if (openPostId !== null) {
-      setActiveTab('blogs');
-      setOpenPostId(null);
-      setSearchParams({ view: 'blogs' });
-    }
   };
 
   // Helper calculations
@@ -1061,17 +1038,6 @@ export function Dashboard() {
       <header className="sticky top-0 z-30 border-b border-black/10 bg-white/95 backdrop-blur">
         <div className="mx-auto flex max-w-[1600px] flex-nowrap items-center justify-between gap-1.5 px-3 py-2 sm:gap-4 sm:px-6 sm:py-2.5 md:px-8 lg:grid lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
           <div className="flex shrink-0 items-center gap-1.5 sm:gap-2.5">
-            {(navHistory.length > 0 || openPostId !== null) && (
-              <button
-                type="button"
-                onClick={handleStepBack}
-                title="Back to previous view"
-                aria-label="Back to previous view"
-                className="grid h-8 w-8 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-[#f5f4ef] hover:text-[#171717]"
-              >
-                <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-              </button>
-            )}
             <Link
               to="/"
               title="Return to Product Overview (Landing Page)"
