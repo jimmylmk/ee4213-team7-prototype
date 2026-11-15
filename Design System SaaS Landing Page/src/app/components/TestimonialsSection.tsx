@@ -14,7 +14,7 @@ export function TestimonialsSection() {
             Designed around real student challenges
           </h2>
           <p className="max-w-2xl mx-auto text-base md:text-lg text-muted-foreground">
-            Synthesized from CityU Semester A registration constraints, full-time visa and credit-floor policies, and direct-entry graduation pathways.
+            Synthesized from CityU registration rules, full-time minimum load policies, and direct-entry graduation pathways.
           </p>
         </div>
 

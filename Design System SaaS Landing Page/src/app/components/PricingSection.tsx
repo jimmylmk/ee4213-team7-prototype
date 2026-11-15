@@ -7,7 +7,7 @@ import { Link } from "react-router";
 const steps = [
   {
     step: "Step 01",
-    title: "Stage Candidate Course",
+    title: "Preview Course Swaps",
     badge: "Direct Manipulation",
     description: "Browse the live catalogue dock and click 'Stage for Rehearsal' to place an elective into the ghost swap slot.",
     features: [
@@ -18,7 +18,7 @@ const steps = [
   },
   {
     step: "Step 02",
-    title: "Validate Safety Invariants",
+    title: "Check Clashes & Credits",
     badge: "Automatic Guard",
     description: "The engine runs instant checks across lecture hours, exam schedules, and personal time blocks.",
     features: [
@@ -29,9 +29,9 @@ const steps = [
   },
   {
     step: "Step 03",
-    title: "Supervised AIMS Handoff",
+    title: "Copy CRNs & Apply on AIMS",
     badge: "Human-in-the-Loop",
-    description: "Open the Control Gate to review the side-by-side delta and follow the 3-step manual CRN execution checklist.",
+    description: "Review your final before-and-after changes and follow the 3-step checklist to update AIMS yourself.",
     features: [
       "Accurate CRN drop/add instructions",
       "Student closure checklist verification",

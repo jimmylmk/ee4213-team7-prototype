@@ -54,9 +54,7 @@ export function Footer() {
         <div className="flex flex-col sm:flex-row justify-between items-center text-xs text-muted-foreground gap-2">
           <p>© 2026 CityU EE4213 Team 7. All rights reserved. Academic simulation prototype.</p>
           <div className="flex flex-wrap justify-center gap-x-4 gap-y-1 font-mono text-[11px]">
-            <span>AY2026/27 Sem A</span>
-            <span>·</span>
-            <span>Zero Auth Mode</span>
+            <span>Zero Login Required</span>
             <span>·</span>
             <span>100% Offline Simulation</span>
           </div>

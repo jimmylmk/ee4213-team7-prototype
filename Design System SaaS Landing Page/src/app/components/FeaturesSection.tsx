@@ -39,7 +39,7 @@ const capabilities = [
   {
     icon: Lock,
     title: "Human-in-the-Loop Control Gate",
-    description: "Supervised handoff gate with side-by-side delta verification and a 3-step manual AIMS CRN execution checklist.",
+    description: "Pre-AIMS confirmation checklist with side-by-side schedule comparison and copyable 5-digit CRNs so you stay in full control.",
     badge: "Safety"
   },
   {
@@ -51,7 +51,7 @@ const capabilities = [
   {
     icon: Command,
     title: "Keyboard Accelerators",
-    description: "Press / to instantly focus search, and Esc to step backward hierarchically from modals, ghost cards, or filters.",
+    description: "Press / to jump straight to course search, and Esc to quickly close popups, previews, or filters.",
     badge: "Speed"
   },
   {
@@ -72,7 +72,7 @@ export function FeaturesSection() {
             Engineered for high-stakes course planning
           </h2>
           <p className="max-w-2xl mx-auto text-base md:text-lg text-muted-foreground">
-            Built to eliminate AIMS drop-and-pray anxiety with rigorous academic heuristics and safe direct manipulation.
+            Built to eliminate Add/Drop panic with instant clash checks, credit guards, and safe schedule previews.
           </p>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
