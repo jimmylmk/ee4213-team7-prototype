@@ -12,6 +12,7 @@ import {
   ChevronDown,
   Clock,
   Pencil,
+  Plus,
   Layers,
   ArrowRight,
   ShieldCheck,
@@ -231,6 +232,7 @@ export function Dashboard() {
   const [selectedMobileDay, setSelectedMobileDay] = useState<(typeof DAYS)[number]>('Mon');
   const [blockPersonalTime, setBlockPersonalTime] = useState(true);
   const [personalCommitments, setPersonalCommitments] = useState<PersonalCommitment[]>(() => DEFAULT_COMMITMENTS.map(commitment => ({ ...commitment, days: [...commitment.days] })));
+  const activeCommitmentCount = personalCommitments.filter(commitment => commitment.enabled).length;
   const [showCommitmentManager, setShowCommitmentManager] = useState(false);
   const [demoCalendarConnected, setDemoCalendarConnected] = useState(false);
   const [selectedDemoEvents, setSelectedDemoEvents] = useState<string[]>([]);
@@ -1456,7 +1458,7 @@ export function Dashboard() {
                         </span>
                         <span className="mt-1 hidden text-[10px] text-muted-foreground md:inline 2xl:hidden">Swipe or scroll horizontally to view all days</span>
                       </div>
-                      <div className="flex flex-wrap items-center gap-3 text-[11px] font-mono text-muted-foreground">
+                      <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 text-[11px] font-mono text-muted-foreground">
                         <span className="flex items-center gap-1.5">
                           <span className="w-2.5 h-2.5 rounded-sm bg-[#171717]" />
                           Enrolled
@@ -1469,65 +1471,136 @@ export function Dashboard() {
                           <span className="w-2.5 h-2.5 rounded-sm border-2 border-dashed border-[#6c4cff] bg-[#f5f3ff]" />
                           Staged
                         </span>
-                        <span className="flex items-center gap-1.5">
-                          <span className="w-2.5 h-2.5 rounded-sm border border-[#18181B]/30 bg-[#D9F99D]" />
-                          Personal Time
-                        </span>
-                        {draggedCourseCode && <span className="font-semibold text-emerald-700">Drop course to preview its schedule</span>}
-                      </div>
-                    </div>
-
-                    {/* Dedicated Timetable Personal Time Bar */}
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 rounded-xl border border-[#E4E1DA] bg-[#F7F5F0] px-3 py-2">
-                      <div className="min-w-0">
-                        <p className="text-xs font-semibold text-[#18181B]">
-                          Block Personal Commitments on Timetable
-                        </p>
-                        <p className="text-[11px] text-[#52525B]">
-                          {blockPersonalTime
-                            ? 'Showing recurring work, gym, or personal blocks on the grid and checking for course overlaps.'
-                            : 'Personal time is hidden and excluded from overlap checks — your saved commitments are kept.'}
-                        </p>
-                      </div>
-
-                      <div
-                        role="group"
-                        aria-label="Personal time controls"
-                        className={`inline-flex shrink-0 max-w-full flex-wrap items-stretch overflow-hidden rounded-lg border text-xs text-[#18181B] transition-colors sm:h-9 sm:flex-nowrap ${
-                          blockPersonalTime ? 'border-[#18181B] bg-[#D9F99D]' : 'border-black/15 bg-white'
-                        }`}
-                      >
                         <button
                           type="button"
-                          role="switch"
-                          aria-label="Personal time"
-                          aria-checked={blockPersonalTime}
-                          onClick={() => setBlockPersonalTime(current => !current)}
-                          title={blockPersonalTime ? 'Turn personal time off (hides blocks & overlap checks without deleting commitments)' : 'Turn personal time on'}
-                          className="inline-flex min-h-9 items-center gap-1.5 px-3 font-semibold transition-colors hover:bg-black/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#18181B]"
-                        >
-                          <Clock className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                          <span className="whitespace-nowrap">
-                            Personal Time: {blockPersonalTime ? 'On' : 'Off'} ({personalCommitments.filter(commitment => commitment.enabled).length})
-                          </span>
-                        </button>
-                        <button
-                          type="button"
-                          aria-label="Edit personal commitments"
-                          title="Add or edit recurring personal commitments"
+                          aria-label="Personal Time legend filter and commitment manager"
                           onClick={() => {
                             setEditingCommitmentId(null);
                             setEditingCommitmentDay(null);
                             setNewLabel('');
                             setShowCommitmentManager(true);
                           }}
-                          className={`inline-flex min-h-9 items-center gap-1.5 border-t px-3 font-medium transition-colors hover:bg-black/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#18181B] sm:border-l sm:border-t-0 ${
-                            blockPersonalTime ? 'border-[#18181B]/20' : 'border-black/10'
-                          }`}
+                          title="Click to manage personal commitments layer or add blocks"
+                          className="group inline-flex items-center gap-1.5 rounded-md border border-[#18181B]/20 bg-[#D9F99D]/40 px-2 py-0.5 font-mono text-[11px] font-semibold text-[#18181B] transition-colors hover:border-[#18181B] hover:bg-[#D9F99D] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#18181B] cursor-pointer"
                         >
-                          <Pencil className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                          <span className="whitespace-nowrap">Edit Commitments</span>
+                          <span className="h-2.5 w-2.5 rounded-sm border border-[#18181B]/40 bg-[#D9F99D] shrink-0" />
+                          <span>Personal Time</span>
+                          <span className="text-[10px] font-bold text-[#18181B]/80">
+                            ({blockPersonalTime ? `${activeCommitmentCount} active` : 'paused'})
+                          </span>
                         </button>
+                        {draggedCourseCode && <span className="font-semibold text-emerald-700">Drop course to preview its schedule</span>}
+                      </div>
+                    </div>
+
+                    {/* Dedicated Timetable Personal Time Interactive Layer Controller */}
+                    <div
+                      className={`rounded-xl border p-3 sm:p-3.5 transition-all ${
+                        blockPersonalTime
+                          ? 'border-[#18181B]/20 bg-[#F7FEE7]/60 shadow-xs'
+                          : 'border-black/10 bg-[#FAFAFA]'
+                      }`}
+                    >
+                      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                        {/* Layer Identifier & Status Badge */}
+                        <div className="flex items-start sm:items-center gap-3 min-w-0">
+                          <div
+                            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border transition-colors ${
+                              blockPersonalTime
+                                ? 'border-[#18181B] bg-[#D9F99D] text-[#18181B] shadow-xs'
+                                : 'border-black/15 bg-white text-zinc-500'
+                            }`}
+                          >
+                            <Clock className="h-4 w-4" aria-hidden="true" />
+                          </div>
+
+                          <div className="min-w-0 flex-1">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="text-xs font-bold text-[#18181B] tracking-tight">
+                                Personal Commitments Layer
+                              </span>
+                              <span
+                                className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10px] font-bold tracking-wide uppercase transition-colors ${
+                                  blockPersonalTime
+                                    ? 'border border-[#18181B]/30 bg-[#D9F99D] text-[#18181B]'
+                                    : 'border border-zinc-300 bg-zinc-200/80 text-zinc-600'
+                                }`}
+                              >
+                                <span
+                                  className={`h-1.5 w-1.5 rounded-full ${
+                                    blockPersonalTime ? 'bg-emerald-600 animate-pulse' : 'bg-zinc-400'
+                                  }`}
+                                  aria-hidden="true"
+                                />
+                                {blockPersonalTime
+                                  ? `Active (${activeCommitmentCount} ${activeCommitmentCount === 1 ? 'block' : 'blocks'})`
+                                  : 'Paused'}
+                              </span>
+                            </div>
+                            <p className="mt-0.5 text-[11px] leading-relaxed text-[#52525B]">
+                              {blockPersonalTime
+                                ? 'Showing recurring work, gym, or personal blocks on the grid and checking for course overlaps.'
+                                : 'Personal time is hidden and excluded from overlap checks — your saved commitments are kept.'}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Layer Actions Group */}
+                        <div
+                          role="group"
+                          aria-label="Personal time controls"
+                          className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-2.5 shrink-0"
+                        >
+                          <button
+                            type="button"
+                            role="switch"
+                            aria-label="Personal time"
+                            aria-checked={blockPersonalTime}
+                            onClick={() => setBlockPersonalTime(current => !current)}
+                            title={
+                              blockPersonalTime
+                                ? 'Turn personal time off (hides blocks & overlap checks without deleting commitments)'
+                                : 'Turn personal time on'
+                            }
+                            className={`inline-flex min-h-[38px] items-center justify-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-semibold transition-all cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#18181B] active:scale-[0.98] ${
+                              blockPersonalTime
+                                ? 'border-[#18181B] bg-white text-[#18181B] hover:bg-[#F7F5F0] shadow-xs'
+                                : 'border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-100 hover:text-black'
+                            }`}
+                          >
+                            <span
+                              className={`relative inline-flex h-4 w-7 shrink-0 items-center rounded-full transition-colors ${
+                                blockPersonalTime ? 'bg-[#18181B]' : 'bg-zinc-300'
+                              }`}
+                              aria-hidden="true"
+                            >
+                              <span
+                                className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${
+                                  blockPersonalTime ? 'translate-x-3.5' : 'translate-x-0.5'
+                                }`}
+                              />
+                            </span>
+                            <span className="whitespace-nowrap">
+                              Personal Time: {blockPersonalTime ? 'On' : 'Off'}
+                            </span>
+                          </button>
+
+                          <button
+                            type="button"
+                            aria-label="Edit personal commitments"
+                            title="Add or edit recurring personal commitments"
+                            onClick={() => {
+                              setEditingCommitmentId(null);
+                              setEditingCommitmentDay(null);
+                              setNewLabel('');
+                              setShowCommitmentManager(true);
+                            }}
+                            className="inline-flex min-h-[38px] items-center justify-center gap-2 rounded-lg border-2 border-[#18181B] bg-[#18181B] px-3.5 py-2 text-xs font-bold text-white transition-all hover:bg-black hover:border-black shadow-xs cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#18181B] active:scale-[0.98]"
+                          >
+                            <Plus className="h-4 w-4 shrink-0 text-[#D9F99D]" aria-hidden="true" />
+                            <span className="whitespace-nowrap">Manage Blocks</span>
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
