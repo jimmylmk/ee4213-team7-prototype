@@ -120,3 +120,20 @@ test('Mobile & Desktop responsive guards: Mobile Day/Week timetable switcher, z-
   assert.match(dashboardSrc, /flex-nowrap/, 'Dashboard header must be flex-nowrap on mobile to prevent top bar row breaking');
   assert.doesNotMatch(dashboardSrc, /order-last grid w-full grid-cols-3/, 'Dashboard nav must not use order-last w-full on mobile');
 });
+
+test('Pre-testing prototype (v1) asset verification: public/v1/index.html and public/v1.html exist and contain baseline prototype markers', () => {
+  const v1DirPath = new URL('../Design System SaaS Landing Page/public/v1/index.html', import.meta.url);
+  const v1HtmlPath = new URL('../Design System SaaS Landing Page/public/v1.html', import.meta.url);
+
+  assert.ok(fs.existsSync(v1DirPath), 'public/v1/index.html must exist');
+  assert.ok(fs.existsSync(v1HtmlPath), 'public/v1.html must exist');
+
+  const v1DirContent = fs.readFileSync(v1DirPath, 'utf8');
+  const v1HtmlContent = fs.readFileSync(v1HtmlPath, 'utf8');
+
+  assert.match(v1DirContent, /Course Registration Sandbox/);
+  assert.match(v1DirContent, /EE4213 Team 7 Master Prototype/);
+  assert.match(v1HtmlContent, /Course Registration Sandbox/);
+  assert.match(v1HtmlContent, /EE4213 Team 7 Master Prototype/);
+});
+
