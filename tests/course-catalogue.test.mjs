@@ -131,9 +131,9 @@ test('Pre-testing prototype (v1) asset verification: public/v1/index.html and pu
   const v1DirContent = fs.readFileSync(v1DirPath, 'utf8');
   const v1HtmlContent = fs.readFileSync(v1HtmlPath, 'utf8');
 
-  assert.match(v1DirContent, /Course Registration Sandbox/);
-  assert.match(v1DirContent, /EE4213 Team 7 Master Prototype/);
-  assert.match(v1HtmlContent, /Course Registration Sandbox/);
-  assert.match(v1HtmlContent, /EE4213 Team 7 Master Prototype/);
+  assert.match(v1DirContent, /Safe-Swap Rehearsal Sandbox/);
+  assert.match(v1DirContent, /CityU EE4213/);
+  assert.match(v1HtmlContent, /Safe-Swap Rehearsal Sandbox/);
+  assert.match(v1HtmlContent, /CityU EE4213/);
 });
 
