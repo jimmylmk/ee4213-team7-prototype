@@ -118,7 +118,7 @@ export function SyllabusDrawer({
               <div className="flex flex-wrap items-center justify-between gap-2 border-b border-black/10 bg-[#f8f7f3] px-5 py-2 text-xs">
                 <span className="flex items-center gap-2 font-medium">
                   <FileText className="h-3.5 w-3.5 text-[#6c4cff]" aria-hidden="true" />
-                  Official CityU syllabus · {course.syllabusYear || '2026/27'} effective academic year · Archived official PDF
+                  Official CityU syllabus · {course.syllabusYear || '2026/27'} effective academic year · Offline archived PDF
                 </span>
                 <a
                   href={course.syllabusPdf}
@@ -142,7 +142,7 @@ export function SyllabusDrawer({
               <CompassIllustration />
               <div className="max-w-md space-y-2">
                 <h3 className="text-lg font-bold">
-                  Looks like this course's official syllabus PDF isn&rsquo;t in our syllabus archive yet.
+                  Looks like this course's official syllabus PDF isn&rsquo;t in our offline archive yet.
                 </h3>
                 <p className="text-sm text-muted-foreground">
                   Nothing is wrong with your schedule — we simply haven&rsquo;t archived {course.code}&rsquo;s official

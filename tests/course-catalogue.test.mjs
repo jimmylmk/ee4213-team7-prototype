@@ -28,7 +28,7 @@ test('Student-life examples belong to the blog feed, not the course catalogue', 
   }
   const examples = blogPosts.filter(post => post.id.startsWith('life-example-'));
   assert.equal(examples.length, 8);
-  assert.ok(examples.every(post => !post.courseCode && post.authorMeta.length > 0 && !/^(S\d+|Sample)/i.test(post.author)));
+  assert.ok(examples.every(post => !post.courseCode && post.authorMeta.includes('Fictional')));
   assert.ok(masterSchedule.every(item => typeof item.code === 'string'));
 });
 
@@ -39,7 +39,7 @@ test('Example grade data covers common courses while retaining a no-data case', 
     assert.deepEqual(Object.keys(feedback.gradeCounts).sort(), Object.keys(SIMULATED_GRADE_POINTS).sort());
     assert.ok(Object.values(feedback.gradeCounts).every(count => Number.isInteger(count) && count >= 0));
     assert.ok(Object.values(feedback.gradeCounts).some(count => count > 0));
-    assert.match(feedback.instructor, /^(Dr\.|Prof\.) /);
+    assert.match(feedback.instructor, /Fictional|Example/);
   }
   assert.equal(simulatedCourseFeedback.GE1313, undefined);
 });
@@ -98,39 +98,14 @@ test('Multi-lane timetable cards prevent course code collapse and header text co
   );
 });
 
-test('Production copy guard: zero residual prototype, simulation, demo, fictional, or sample-student wording in app files and runtime data', () => {
-  const filesToCheck = [
-    '../Design System SaaS Landing Page/index.html',
-    '../Design System SaaS Landing Page/src/app/components/Header.tsx',
-    '../Design System SaaS Landing Page/src/app/components/HeroSection.tsx',
-    '../Design System SaaS Landing Page/src/app/components/FeaturesSection.tsx',
-    '../Design System SaaS Landing Page/src/app/components/PricingSection.tsx',
-    '../Design System SaaS Landing Page/src/app/components/TestimonialsSection.tsx',
-    '../Design System SaaS Landing Page/src/app/components/Footer.tsx',
-    '../Design System SaaS Landing Page/src/app/components/SyllabusDrawer.tsx',
-    '../Design System SaaS Landing Page/src/app/components/Dashboard.tsx',
-    '../Design System SaaS Landing Page/src/app/data/courseData.ts'
-  ];
+test('Academic project and simulation copy guard: verifies project attribution and simulation sandbox copy', () => {
+  const indexHtml = fs.readFileSync(new URL('../Design System SaaS Landing Page/index.html', import.meta.url), 'utf8');
+  assert.match(indexHtml, /CityU EE4213 Human-Computer Interaction Team 7/);
+  assert.match(indexHtml, /Safe-Swap Rehearsal Sandbox/);
 
-  const bannedPattern = /\b(prototype|simulated|simulation|simulator|fictional|sandbox)\b|sample (student|schedule|commitments|reflection|scenario|syllabus|approach|conversation|search|week)|Verified \(demo\)|Pending \(demo\)|Google Calendar demo|Connect demo|Disconnect demo|Demo calendar|demo event/i;
-
-  for (const relPath of filesToCheck) {
-    const raw = fs.readFileSync(new URL(relPath, import.meta.url), 'utf8');
-    // Strip preserved TypeScript export identifiers before checking user-facing copy
-    const cleaned = raw.replace(
-      /\b(simulatedGEAreas|simulatedCourseFeedback|SIMULATED_GRADE_POINTS|SimulatedGrade|SimulatedCourseFeedback)\b/g,
-      '__EXPORT_ID__'
-    );
-    const match = cleaned.match(bannedPattern);
-    assert.equal(match, null, `Unexpected prototype/demo wording "${match?.[0]}" found in ${relPath}`);
-  }
-
-  for (const post of blogPosts) {
-    assert.doesNotMatch(post.author, /^(Sample|S\d+$)/i, `Blog post ${post.id} has placeholder author ${post.author}`);
-    assert.doesNotMatch(post.initials, /^S\d+$/i, `Blog post ${post.id} has placeholder initials ${post.initials}`);
-    const combinedText = [post.title, post.subtitle, post.summary, post.authorMeta, post.aboutAuthor, ...post.body].join(' ');
-    assert.doesNotMatch(combinedText, bannedPattern, `Blog post ${post.id} contains banned prototype/sample wording`);
-  }
+  const footerSrc = fs.readFileSync(new URL('../Design System SaaS Landing Page/src/app/components/Footer.tsx', import.meta.url), 'utf8');
+  assert.match(footerSrc, /CityU EE4213 Team #7/);
+  assert.match(footerSrc, /100% Offline Simulation/);
 });
 
 test('Mobile & Desktop responsive guards: Mobile Day/Week timetable switcher, z-30 sticky time column, and responsive Control Gate', () => {

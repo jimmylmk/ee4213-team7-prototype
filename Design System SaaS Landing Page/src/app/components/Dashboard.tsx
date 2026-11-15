@@ -141,9 +141,9 @@ const DEFAULT_COMMITMENTS: PersonalCommitment[] = [
   { id: 'pc-1', label: 'Part-time internship shift', category: 'Internship', days: ['Thu'], startHour: 14, endHour: 16, enabled: true },
   { id: 'pc-2', label: 'Independent study & commute', category: 'Personal', days: ['Mon'], startHour: 10, endHour: 12, enabled: true }
 ];
-const SYNCED_CALENDAR_EVENTS: Array<Omit<PersonalCommitment, 'id' | 'enabled'> & { demoCalendarId: string }> = [
-  { demoCalendarId: 'study-group', label: 'Weekly Peer Study Group', category: 'Personal', days: ['Tue'], startHour: 9, endHour: 10 },
-  { demoCalendarId: 'work-shift', label: 'Part-Time Lab Assistant Shift', category: 'Part-time work', days: ['Fri'], startHour: 13, endHour: 15 }
+const DEMO_CALENDAR_EVENTS: Array<Omit<PersonalCommitment, 'id' | 'enabled'> & { demoCalendarId: string }> = [
+  { demoCalendarId: 'study-group', label: 'Example study group', category: 'Personal', days: ['Tue'], startHour: 9, endHour: 10 },
+  { demoCalendarId: 'work-shift', label: 'Example work shift', category: 'Part-time work', days: ['Fri'], startHour: 13, endHour: 15 }
 ];
 
 const formatHour = (hour: number) => `${String(Math.floor(hour)).padStart(2, '0')}:${hour % 1 ? '30' : '00'}`;
@@ -213,7 +213,7 @@ export function Dashboard() {
   const currentBlogPage = Math.min(blogPage, blogPageCount);
   const visibleBlogPosts = filteredBlogPosts.slice((currentBlogPage - 1) * BLOG_PAGE_SIZE, currentBlogPage * BLOG_PAGE_SIZE);
 
-  // Schedule State
+  // Simulation State
   const [enrolled, setEnrolled] = useState<string[]>([...studentProfile.baselineEnrolled]);
   const [swapOutId, setSwapOutId] = useState<string | null>(null);
   const [selectedReplacements, setSelectedReplacementsState] = useState<string[]>([]);
@@ -232,8 +232,8 @@ export function Dashboard() {
   const [blockPersonalTime, setBlockPersonalTime] = useState(true);
   const [personalCommitments, setPersonalCommitments] = useState<PersonalCommitment[]>(() => DEFAULT_COMMITMENTS.map(commitment => ({ ...commitment, days: [...commitment.days] })));
   const [showCommitmentManager, setShowCommitmentManager] = useState(false);
-  const [calendarSyncConnected, setCalendarSyncConnected] = useState(false);
-  const [selectedCalendarEvents, setSelectedCalendarEvents] = useState<string[]>([]);
+  const [demoCalendarConnected, setDemoCalendarConnected] = useState(false);
+  const [selectedDemoEvents, setSelectedDemoEvents] = useState<string[]>([]);
   const [newLabel, setNewLabel] = useState('');
   const [newCategory, setNewCategory] = useState<PersonalCommitment['category']>('Internship');
   const [newDays, setNewDays] = useState<PersonalCommitment['days']>([]);
@@ -511,7 +511,7 @@ export function Dashboard() {
         parseMinutes(meeting.end) > newStartHour * 60)
       .map(meeting => ({ code: course.code, meeting })));
   const personalOverlapMessage = (block: ActivePersonalBlock) =>
-    `Overlaps "${block.label}" (${block.day} ${formatHour(block.startHour)}-${formatHour(block.endHour)} · ${block.demoCalendarId ? 'Google Calendar' : 'You entered'}).`;
+    `Overlaps "${block.label}" (${block.day} ${formatHour(block.startHour)}-${formatHour(block.endHour)} · ${block.demoCalendarId ? 'Demo calendar' : 'You entered'}).`;
 
   const stagedPersonalOverlaps = activePersonalBlocks.filter(block =>
     stagedCourses.some(course => getPersonalOverlaps(course).some(overlap => overlap.id === block.id))
@@ -901,7 +901,7 @@ export function Dashboard() {
     changeTab('inspector');
   };
 
-  const applyConfirmedSwap = () => {
+  const executeSimulatedSwap = () => {
     // Defensive re-check so no caller can apply a blocked change
     if (confirmBlockers.length > 0) return;
     let newEnrolled = [...enrolled];
@@ -1053,7 +1053,7 @@ export function Dashboard() {
 
           {/* Segmented view switcher - Single Line on Mobile */}
           <nav
-            aria-label="Workspace views"
+            aria-label="Simulator views"
             className="relative grid grid-cols-3 gap-1 rounded-xl bg-[#eeece6] p-1 shrink-0"
           >
             <span
@@ -1121,12 +1121,12 @@ export function Dashboard() {
                 </SheetHeader>
                 <div className="space-y-5 px-6 py-6">
                   <div className="rounded-xl border border-[#d1e5a0] bg-[#eff8d7] p-4 text-[#18181B]">
-                    <p className="text-sm font-semibold">AIMS Companion Planner</p>
+                    <p className="text-sm font-semibold">This is a simulation</p>
                     <p className="mt-1 text-xs leading-relaxed">
-                      CityU CampuSync lets you rehearse add/drop changes safely without modifying your live AIMS registration. Once your draft is conflict-free, follow the Control Gate CRN checklist to complete registration in AIMS.
+                      CityU CampuSync is a safe swap sandbox. Your changes here will not affect your official AIMS registration until you complete the steps in AIMS.
                     </p>
                     <p className="mt-2 text-xs leading-relaxed">
-                      Changes, personal time blocks, and shared posts are stored locally in your active browser session.
+                      Your draft, personal time and blog contributions are temporary and are lost when you reload or leave the app.
                     </p>
                   </div>
                   <div>
@@ -1153,7 +1153,7 @@ export function Dashboard() {
                           How do I add personal time?
                         </AccordionTrigger>
                         <AccordionContent className="text-sm leading-relaxed text-[#52525B]">
-                          Use the pencil next to Personal time to add or edit commitments. Drag a personal block to move that weekday, or select the block to edit it. Use the switch to show or hide personal time. Reset restores your baseline enrolled schedule and default commitments.
+                          Use the pencil next to Personal time to add or edit commitments. Drag a personal block to move that weekday, or select the block to edit it. Use the switch to show or hide personal time. Reset restores the sample schedule and commitments.
                         </AccordionContent>
                       </AccordionItem>
                       <AccordionItem value="inspect" className="border-[#E4E1DA] px-4">
@@ -1161,7 +1161,7 @@ export function Dashboard() {
                           How do I inspect a course?
                         </AccordionTrigger>
                         <AccordionContent className="text-sm leading-relaxed text-[#52525B]">
-                          Select Inspect Details on a course or search in Course Inspector to see its schedule, assessment details, syllabus and related blog posts. Always verify final section quotas and examination schedules on AIMS before submitting registration changes.
+                          Select Inspect Details on a course or search in Course Inspector to see its schedule, assessment details, syllabus and related blog posts. Course details and blog posts are prototype data; check official sources before making decisions.
                         </AccordionContent>
                       </AccordionItem>
                       <AccordionItem value="aims" className="border-[#E4E1DA] px-4">
@@ -1169,7 +1169,7 @@ export function Dashboard() {
                           How do I register in AIMS?
                         </AccordionTrigger>
                         <AccordionContent className="text-sm leading-relaxed text-[#52525B]">
-                          Open the Control Gate to review your changes and checklist. Check live seat availability and complete the applicable registration steps in AIMS yourself, then tick the checklist and confirm the updated schedule on your timetable.
+                          Open the Control Gate to review your changes and checklist. Check live seat availability and complete the applicable registration steps in AIMS yourself, then tick the checklist and confirm the change in the simulation.
                         </AccordionContent>
                       </AccordionItem>
                     </Accordion>
@@ -1367,7 +1367,7 @@ export function Dashboard() {
                   <div className="flex items-center gap-3">
                     <CheckCircle className="h-5 w-5 text-green-600 shrink-0" />
                     <span className="text-xs font-medium text-green-800">
-                      Schedule draft applied to your weekly timetable. Complete your official CRN registration on AIMS.
+                      Simulated draft applied to the weekly timetable. Complete registration separately on AIMS.
                     </span>
                   </div>
                   <button onClick={() => setSwapConfirmed(false)} className="text-green-700 hover:text-green-900 text-xs shrink-0 ml-2">
@@ -1780,7 +1780,7 @@ export function Dashboard() {
                                       <span className="block truncate whitespace-nowrap font-mono text-[9px] leading-tight">{ev.startStr}–{ev.endStr}</span>
                                       {overlapsAcademic
                                         ? <span className="block text-[9px] font-semibold leading-tight text-amber-800">Overlap</span>
-                                        : <span className="block truncate text-[9px] leading-tight">{ev.personalBlock?.category} · {ev.personalBlock?.demoCalendarId ? 'Google Calendar' : 'You entered'}</span>}
+                                        : <span className="block truncate text-[9px] leading-tight">{ev.personalBlock?.category} · {ev.personalBlock?.demoCalendarId ? 'Demo calendar' : 'You entered'}</span>}
                                     </button>
                                     <button
                                       type="button"
@@ -1988,7 +1988,7 @@ export function Dashboard() {
                 <div className="xl:col-span-4 bg-white border border-black/10 rounded-2xl p-5 shadow-sm flex flex-col max-h-[600px] xl:max-h-none xl:h-[780px]">
                   <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b mb-3">
                     <div>
-                      <h3 ref={catalogueHeadingRef} tabIndex={-1} className="scroll-mt-24 text-xs font-semibold focus:outline-none">Course Catalogue</h3>
+                      <h3 ref={catalogueHeadingRef} tabIndex={-1} className="scroll-mt-24 text-xs font-semibold focus:outline-none">Simulated Course Catalogue</h3>
                       <p className="text-[11px] text-muted-foreground">{filteredCatalogue.length} matching courses</p>
                     </div>
                     <button
@@ -2094,9 +2094,9 @@ export function Dashboard() {
                   {activeFilter === 'ge' && (
                     <div className="mb-3 space-y-2">
                       <p className="text-[11px] text-muted-foreground">
-                        Confirm GE area fulfillment against your cohort's official degree audit requirements.
+                        GE classifications are simulated examples, not official degree advice.
                       </p>
-                      <div role="group" aria-label="GE requirement area" className="flex flex-wrap gap-1.5">
+                      <div role="group" aria-label="Simulated GE area" className="flex flex-wrap gap-1.5">
                         {(['all', 'area1', 'area2', 'area3', 'unireq'] as const).map(area => (
                           <button
                             key={area}
@@ -2187,7 +2187,7 @@ export function Dashboard() {
                           )}
                           {course.category === 'ge' && geArea && (
                             <p className="mt-1 text-[11px] text-muted-foreground">
-                              GE Requirement: {GE_AREA_LABELS[geArea]}
+                              Simulated GE: {GE_AREA_LABELS[geArea]}
                             </p>
                           )}
 
@@ -2274,7 +2274,7 @@ export function Dashboard() {
                     Course Inspector &amp; Workload Diagnostics
                   </h1>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    Inspect syllabus workload splits, assessment risks, and peer course reflections.
+                    Inspect syllabus workload splits, assessment risks, and sample peer reflections.
                   </p>
                 </div>
 
@@ -2597,13 +2597,13 @@ export function Dashboard() {
                         <li className="flex items-center justify-between gap-3">
                           <span className="min-w-0">{inspectorCourse.examPct === null ? 'Assessment weights: see syllabus' : `Assessment weights (${inspectorCourse.courseworkPct}% Coursework / ${inspectorCourse.examPct}% Exam)`}</span>
                           <span className="shrink-0 text-right font-mono text-[11px] px-1.5 py-0.5 rounded bg-[#f8f7f3] border text-muted-foreground">
-                            {inspectorCourse.examPct === null ? 'Not extracted' : 'Official syllabus'}
+                            {inspectorCourse.examPct === null ? 'Not extracted' : 'Sample syllabus'}
                           </span>
                         </li>
                         <li className="flex items-center justify-between gap-3">
                           <span className="min-w-0">Weekly workload estimate ({workloadMetrics.totalH} hrs/wk)</span>
                           <span className="shrink-0 text-right font-mono text-[11px] px-1.5 py-0.5 rounded bg-[#f8f7f3] border text-muted-foreground">
-                            Syllabus estimate
+                            Simulated estimate
                           </span>
                         </li>
                         <li className="flex items-center justify-between gap-3">
@@ -2637,11 +2637,11 @@ export function Dashboard() {
 
                 {/* Middle 4 Columns: Grade Distribution & Blogs */}
                 <div className="lg:col-span-4 space-y-6">
-                  <section className="space-y-4 rounded-2xl border border-black/10 bg-white p-6 shadow-sm" aria-labelledby="course-feedback-heading">
+                  <section className="space-y-4 rounded-2xl border border-black/10 bg-white p-6 shadow-sm" aria-labelledby="sample-feedback-heading">
                     <div>
-                      <h3 id="course-feedback-heading" className="text-sm font-bold">Historical grades &amp; instructor rating</h3>
+                      <h3 id="sample-feedback-heading" className="text-sm font-bold">Example grades &amp; instructor rating</h3>
                       <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                        Aggregated student-reported grades and past cohort course evaluations.
+                        Simulated data and fictional instructors; not official grades or real student feedback.
                       </p>
                     </div>
                     {feedback && meanGrade !== null ? (
@@ -2650,23 +2650,23 @@ export function Dashboard() {
                           <div className="rounded-xl border border-[#e2d9ff] bg-[#f7f4ff] p-3">
                             <p className="text-xs font-semibold">Average grade points</p>
                             <p className="mt-1 font-mono text-lg font-bold text-[#5b21b6]">{meanGrade.toFixed(2)} <span className="text-xs font-medium text-[#52525B]">/ 4.3</span></p>
-                            <p className="text-[11px] text-muted-foreground">{gradeCount} reported grades</p>
+                            <p className="text-[11px] text-muted-foreground">{gradeCount} simulated grades</p>
                           </div>
                           <div className="rounded-xl border border-black/10 bg-[#f8f7f3] p-3">
                             <p className="text-xs font-semibold">{feedback.instructor}</p>
                             <p className="mt-1 font-mono text-lg font-bold">{feedback.instructorRating.toFixed(1)} <span className="text-xs font-medium text-[#52525B]">/ 5</span></p>
-                            <p className="text-[11px] text-muted-foreground">{feedback.ratingCount} student ratings</p>
+                            <p className="text-[11px] text-muted-foreground">{feedback.ratingCount} simulated ratings</p>
                           </div>
                         </div>
                         <div>
                           <div className="flex flex-wrap items-baseline justify-between gap-1">
                             <h4 className="text-xs font-bold">Grade distribution</h4>
-                            <span className="text-[11px] text-muted-foreground">Number of reported grades</span>
+                            <span className="text-[11px] text-muted-foreground">Number of simulated grades</span>
                           </div>
                           <div className="overflow-x-auto pb-1">
                             <div
                               role="img"
-                              aria-label={`Historical grade distribution: ${gradeRows.map(row => `${row.grade}: ${row.count}`).join(', ')}.`}
+                              aria-label={`Simulated grade distribution: ${gradeRows.map(row => `${row.grade}: ${row.count}`).join(', ')}.`}
                               className="mt-6 grid min-w-[280px] grid-cols-11 gap-1"
                             >
                               {gradeRows.map(row => (
@@ -2716,8 +2716,8 @@ export function Dashboard() {
                           <circle cx="72" cy="14" r="8" fill="#fff" stroke="#7c3aed" strokeWidth="2" />
                           <path d="M72 11V14M72 17H72.1" stroke="#7c3aed" strokeWidth="2" strokeLinecap="round" />
                         </svg>
-                        <p className="mt-2 text-xs font-semibold">No grade history available yet</p>
-                        <p className="mt-1 text-xs leading-relaxed text-muted-foreground">Student-reported grade and instructor evaluation records have not been published for this course yet.</p>
+                        <p className="mt-2 text-xs font-semibold">No simulated grade history yet</p>
+                        <p className="mt-1 text-xs leading-relaxed text-muted-foreground">This prototype has no simulated grade or instructor data for this course.</p>
                       </div>
                     )}
                   </section>
@@ -2730,7 +2730,7 @@ export function Dashboard() {
                           Reviews &amp; Discussion from CityU Student Blogs
                         </h3>
                         <p className="text-[11px] text-muted-foreground mt-0.5">
-                          Verified student reflections and peer course reviews.
+                          Example posts are simulated. Posts you share stay in this session.
                         </p>
                       </div>
                       <Button
@@ -2754,7 +2754,7 @@ export function Dashboard() {
                           <div className="flex items-start justify-between gap-2 text-xs">
                             <span className="min-w-0 font-bold text-[#171717]">&ldquo;{post.title}&rdquo;</span>
                             <span className="shrink-0 font-mono text-[11px] bg-white border border-black/10 px-1.5 py-0.5 rounded text-muted-foreground">
-                              {blogPosts.some(example => example.id === post.id) ? 'Community Archive' : 'Shared in this session'}
+                              {blogPosts.some(example => example.id === post.id) ? 'Simulated example' : 'Shared in this session'}
                             </span>
                           </div>
                           <p className="font-mono text-[11px] text-muted-foreground">
@@ -2919,7 +2919,7 @@ export function Dashboard() {
                     <div>
                       <h1 className="text-2xl font-bold tracking-tight md:text-3xl">CityU Student Life Blogs</h1>
                       <p className="mt-1 text-xs text-muted-foreground">
-                        Student-written course reflections, workload survival guides, and campus life notes from across CityUHK.
+                        Example posts and verification labels are simulated, not university checks. Shared posts stay in this session.
                       </p>
                     </div>
                     <Button
@@ -2984,8 +2984,8 @@ export function Dashboard() {
                         className="h-9 rounded-lg border border-[#E4E1DA] bg-white px-2.5 text-xs font-medium text-[#18181B] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#18181B]"
                       >
                         <option value="all">All statuses</option>
-                        <option value="verified">Verified Student</option>
-                        <option value="pending">Community Post</option>
+                        <option value="verified">Verified (demo)</option>
+                        <option value="pending">Pending (demo)</option>
                       </select>
                     </label>
                   </div>
@@ -3079,7 +3079,7 @@ export function Dashboard() {
                               ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
                               : 'border-amber-200 bg-amber-50 text-amber-800'
                           }`}>
-                            {post.verificationStatus === 'verified' ? 'Verified Student' : 'Community Post'}
+                            {post.verificationStatus === 'verified' ? 'Verified (demo)' : 'Pending (demo)'}
                           </span>
                           <h3 className="text-base font-bold leading-snug">{post.title}</h3>
                           {post.subtitle && <p className="text-xs text-muted-foreground">{post.subtitle}</p>}
@@ -3154,7 +3154,7 @@ export function Dashboard() {
                               ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
                               : 'border-amber-200 bg-amber-50 text-amber-800'
                           }`}>
-                            {activeBlogPost.verificationStatus === 'verified' ? 'Verified Student' : 'Community Post'}
+                            {activeBlogPost.verificationStatus === 'verified' ? 'Verified (demo)' : 'Pending (demo)'}
                           </span>
                         </div>
                       </header>
@@ -3257,7 +3257,7 @@ export function Dashboard() {
                       <section className="space-y-2 rounded-2xl border border-[#E4E1DA] bg-[#f8f7f3] p-4 text-xs leading-relaxed text-muted-foreground">
                         <h2 className="font-bold text-[#171717]">Verification &amp; provenance</h2>
                         <p>
-                          Verified Student badges indicate contributors who confirmed their CityUHK cohort and enrolled course history.
+                          Verification labels are simulated for this prototype. Posts are not submitted for university review.
                         </p>
                       </section>
 
@@ -3370,7 +3370,7 @@ export function Dashboard() {
                           verificationStatus: 'pending',
                           commentCount: 0,
                           authorMeta,
-                          aboutAuthor: 'CityUHK undergraduate contributor.',
+                          aboutAuthor: 'CityU undergraduate · Self-submitted experience in this prototype.',
                           summary: (body[0] || '').slice(0, 220),
                           body,
                           comments: [],
@@ -3523,25 +3523,25 @@ export function Dashboard() {
               </button>
             </div>
 
-            <section aria-labelledby="calendar-sync-heading" className="mt-5 rounded-lg border border-[#E4E1DA] bg-[#F7F5F0] p-3">
-              <h3 id="calendar-sync-heading" className="text-sm font-semibold">Google Calendar Import</h3>
-              <p className="mt-1 text-xs leading-relaxed text-[#52525B]">Import recurring weekly blocks from your personal calendar to check for timetable overlaps.</p>
-              {!calendarSyncConnected ? (
-                <button type="button" onClick={() => setCalendarSyncConnected(true)} className="mt-3 rounded-lg border border-[#18181B] bg-white px-3 py-2 text-xs font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#18181B]">
-                  Connect Google Calendar
+            <section aria-labelledby="demo-calendar-heading" className="mt-5 rounded-lg border border-[#E4E1DA] bg-[#F7F5F0] p-3">
+              <h3 id="demo-calendar-heading" className="text-sm font-semibold">Google Calendar demo</h3>
+              <p className="mt-1 text-xs leading-relaxed text-[#52525B]">Fictional events only. No Google account is connected and no calendar data is accessed.</p>
+              {!demoCalendarConnected ? (
+                <button type="button" onClick={() => setDemoCalendarConnected(true)} className="mt-3 rounded-lg border border-[#18181B] bg-white px-3 py-2 text-xs font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#18181B]">
+                  Connect demo calendar
                 </button>
               ) : (
                 <div className="mt-3 space-y-3">
-                  <p className="text-xs font-semibold">Calendar connected · Select recurring weekly events to import</p>
-                  {SYNCED_CALENDAR_EVENTS.map(event => {
+                  <p className="text-xs font-semibold">Demo connected · Select weekly examples to import</p>
+                  {DEMO_CALENDAR_EVENTS.map(event => {
                     const imported = personalCommitments.some(commitment => commitment.demoCalendarId === event.demoCalendarId);
                     return (
                       <label key={event.demoCalendarId} className="flex items-start gap-2 text-xs">
                         <input
                           type="checkbox"
-                          checked={!imported && selectedCalendarEvents.includes(event.demoCalendarId)}
+                          checked={!imported && selectedDemoEvents.includes(event.demoCalendarId)}
                           disabled={imported}
-                          onChange={change => setSelectedCalendarEvents(current => change.target.checked
+                          onChange={change => setSelectedDemoEvents(current => change.target.checked
                             ? [...current, event.demoCalendarId]
                             : current.filter(id => id !== event.demoCalendarId))}
                           className="mt-0.5 accent-[#18181B]"
@@ -3554,22 +3554,22 @@ export function Dashboard() {
                   <div className="flex flex-wrap gap-2">
                     <button
                       type="button"
-                      disabled={!selectedCalendarEvents.some(id => !personalCommitments.some(commitment => commitment.demoCalendarId === id))}
+                      disabled={!selectedDemoEvents.some(id => !personalCommitments.some(commitment => commitment.demoCalendarId === id))}
                       onClick={() => {
-                        const selected = SYNCED_CALENDAR_EVENTS.filter(event => selectedCalendarEvents.includes(event.demoCalendarId) &&
+                        const selected = DEMO_CALENDAR_EVENTS.filter(event => selectedDemoEvents.includes(event.demoCalendarId) &&
                           !personalCommitments.some(commitment => commitment.demoCalendarId === event.demoCalendarId));
                         if (!selected.length) return;
                         setPersonalCommitments(current => [...current, ...selected.map(event => ({
                           ...event, days: [...event.days], id: crypto.randomUUID(), enabled: true
                         }))]);
-                        setSelectedCalendarEvents([]);
+                        setSelectedDemoEvents([]);
                         setBlockPersonalTime(true);
-                        toast.success(`${selected.length} calendar ${selected.length === 1 ? 'event' : 'events'} imported as weekly commitments.`);
+                        toast.success(`${selected.length} demo ${selected.length === 1 ? 'event' : 'events'} imported as weekly commitments.`);
                       }}
                       className="rounded-lg bg-[#18181B] px-3 py-2 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#18181B]"
                     >Import selected</button>
-                    <button type="button" onClick={() => { setCalendarSyncConnected(false); setSelectedCalendarEvents([]); }} className="rounded-lg border border-[#18181B] bg-white px-3 py-2 text-xs font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#18181B]">
-                      Disconnect calendar
+                    <button type="button" onClick={() => { setDemoCalendarConnected(false); setSelectedDemoEvents([]); }} className="rounded-lg border border-[#18181B] bg-white px-3 py-2 text-xs font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#18181B]">
+                      Disconnect demo
                     </button>
                   </div>
                   <p className="text-xs text-[#52525B]">Disconnecting keeps imported commitments. Remove them individually if needed.</p>
@@ -3587,7 +3587,7 @@ export function Dashboard() {
                     onClick={() => setPersonalCommitments(DEFAULT_COMMITMENTS.map(commitment => ({ ...commitment, days: [...commitment.days] })))}
                     className="mt-2 font-semibold underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#18181B]"
                   >
-                    Restore default commitments
+                    Restore sample commitments
                   </button>
                 </div>
               ) : personalCommitments.map(commitment => (
@@ -3608,7 +3608,7 @@ export function Dashboard() {
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="text-xs font-semibold">{commitment.label}</span>
                       <span className="rounded-md border border-[#E4E1DA] bg-[#F7F5F0] px-2 py-0.5 text-xs text-[#18181B]">{commitment.category}</span>
-                      {commitment.demoCalendarId && <span className="text-xs text-[#52525B]">Google Calendar</span>}
+                      {commitment.demoCalendarId && <span className="text-xs text-[#52525B]">Demo calendar</span>}
                     </div>
                     <div className="mt-2 flex flex-wrap items-center gap-1 text-xs text-[#52525B]">
                       {commitment.days.map(day => <span key={day} className="rounded border border-[#E4E1DA] px-1.5 py-0.5">{day}</span>)}
@@ -3956,12 +3956,12 @@ export function Dashboard() {
                 size="sm"
                 disabled={!canConfirm}
                 onClick={() => {
-                  applyConfirmedSwap();
+                  executeSimulatedSwap();
                   setControlGateOpen(false);
                 }}
                 className="bg-[#171717] text-white hover:bg-[#6c4cff] text-xs h-9"
               >
-                {stagedCourses.length ? 'Apply Draft to Timetable' : 'Apply Drop to Timetable'}
+                {stagedCourses.length ? 'Confirm Draft in Simulation' : 'Confirm Drop in Simulation'}
               </Button>
             </div>
           </div>
