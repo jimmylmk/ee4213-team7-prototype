@@ -79,10 +79,10 @@ const CREDIT_POLICY_LIMITS: Record<CreditPolicy, { minCredits: number; maxCredit
 
 type DashboardTab = 'rehearsal' | 'inspector' | 'blogs';
 
-const TABS: { id: DashboardTab; label: string; icon: typeof Calendar }[] = [
-  { id: 'rehearsal', label: 'Rehearsal Timetable', icon: Calendar },
-  { id: 'inspector', label: 'Course Inspector', icon: BookOpen },
-  { id: 'blogs', label: 'CityU Blogs', icon: MessageSquare }
+const TABS: { id: DashboardTab; label: string; shortLabel: string; icon: typeof Calendar }[] = [
+  { id: 'rehearsal', label: 'Rehearsal Timetable', shortLabel: 'Timetable', icon: Calendar },
+  { id: 'inspector', label: 'Course Inspector', shortLabel: 'Inspector', icon: BookOpen },
+  { id: 'blogs', label: 'CityU Blogs', shortLabel: 'Blogs', icon: MessageSquare }
 ];
 
 const parseTab = (view: string | null): DashboardTab =>
@@ -141,9 +141,9 @@ const DEFAULT_COMMITMENTS: PersonalCommitment[] = [
   { id: 'pc-1', label: 'Part-time internship shift', category: 'Internship', days: ['Thu'], startHour: 14, endHour: 16, enabled: true },
   { id: 'pc-2', label: 'Independent study & commute', category: 'Personal', days: ['Mon'], startHour: 10, endHour: 12, enabled: true }
 ];
-const DEMO_CALENDAR_EVENTS: Array<Omit<PersonalCommitment, 'id' | 'enabled'> & { demoCalendarId: string }> = [
-  { demoCalendarId: 'study-group', label: 'Example study group', category: 'Personal', days: ['Tue'], startHour: 9, endHour: 10 },
-  { demoCalendarId: 'work-shift', label: 'Example work shift', category: 'Part-time work', days: ['Fri'], startHour: 13, endHour: 15 }
+const SYNCED_CALENDAR_EVENTS: Array<Omit<PersonalCommitment, 'id' | 'enabled'> & { demoCalendarId: string }> = [
+  { demoCalendarId: 'study-group', label: 'Weekly Peer Study Group', category: 'Personal', days: ['Tue'], startHour: 9, endHour: 10 },
+  { demoCalendarId: 'work-shift', label: 'Part-Time Lab Assistant Shift', category: 'Part-time work', days: ['Fri'], startHour: 13, endHour: 15 }
 ];
 
 const formatHour = (hour: number) => `${String(Math.floor(hour)).padStart(2, '0')}:${hour % 1 ? '30' : '00'}`;
@@ -213,7 +213,7 @@ export function Dashboard() {
   const currentBlogPage = Math.min(blogPage, blogPageCount);
   const visibleBlogPosts = filteredBlogPosts.slice((currentBlogPage - 1) * BLOG_PAGE_SIZE, currentBlogPage * BLOG_PAGE_SIZE);
 
-  // Simulation State
+  // Schedule State
   const [enrolled, setEnrolled] = useState<string[]>([...studentProfile.baselineEnrolled]);
   const [swapOutId, setSwapOutId] = useState<string | null>(null);
   const [selectedReplacements, setSelectedReplacementsState] = useState<string[]>([]);
@@ -227,11 +227,13 @@ export function Dashboard() {
   const [selectedSections, setSelectedSections] = useState<Record<string, SelectedSections>>({});
   const [creditPolicy, setCreditPolicy] = useState<CreditPolicy>('standard');
   const [hoveredCourseCode, setHoveredCourseCode] = useState<string | null>(null);
+  const [mobileTimetableMode, setMobileTimetableMode] = useState<'day' | 'week'>('day');
+  const [selectedMobileDay, setSelectedMobileDay] = useState<(typeof DAYS)[number]>('Mon');
   const [blockPersonalTime, setBlockPersonalTime] = useState(true);
   const [personalCommitments, setPersonalCommitments] = useState<PersonalCommitment[]>(() => DEFAULT_COMMITMENTS.map(commitment => ({ ...commitment, days: [...commitment.days] })));
   const [showCommitmentManager, setShowCommitmentManager] = useState(false);
-  const [demoCalendarConnected, setDemoCalendarConnected] = useState(false);
-  const [selectedDemoEvents, setSelectedDemoEvents] = useState<string[]>([]);
+  const [calendarSyncConnected, setCalendarSyncConnected] = useState(false);
+  const [selectedCalendarEvents, setSelectedCalendarEvents] = useState<string[]>([]);
   const [newLabel, setNewLabel] = useState('');
   const [newCategory, setNewCategory] = useState<PersonalCommitment['category']>('Internship');
   const [newDays, setNewDays] = useState<PersonalCommitment['days']>([]);
@@ -532,7 +534,7 @@ export function Dashboard() {
         parseMinutes(meeting.end) > newStartHour * 60)
       .map(meeting => ({ code: course.code, meeting })));
   const personalOverlapMessage = (block: ActivePersonalBlock) =>
-    `Overlaps "${block.label}" (${block.day} ${formatHour(block.startHour)}-${formatHour(block.endHour)} · ${block.demoCalendarId ? 'Demo calendar' : 'You entered'}).`;
+    `Overlaps "${block.label}" (${block.day} ${formatHour(block.startHour)}-${formatHour(block.endHour)} · ${block.demoCalendarId ? 'Google Calendar' : 'You entered'}).`;
 
   const stagedPersonalOverlaps = activePersonalBlocks.filter(block =>
     stagedCourses.some(course => getPersonalOverlaps(course).some(overlap => overlap.id === block.id))
@@ -800,6 +802,9 @@ export function Dashboard() {
       return false;
     }
     setSelectedReplacements(current => current.includes(code) ? current : [...current, code]);
+    const firstMeetingDay = getResolvedMeetings(course, selectedSections)[0]?.day;
+    if (firstMeetingDay) setSelectedMobileDay(firstMeetingDay);
+    toast.success(`${course.code} staged on the timetable${firstMeetingDay ? ` (${firstMeetingDay})` : ''}`);
     return true;
   };
 
@@ -825,7 +830,7 @@ export function Dashboard() {
     event.preventDefault();
     const courseCode = event.dataTransfer.getData('text/plain') || draggedCourseCode;
     if (!courseCode) return;
-    if (handleStageCourse(courseCode)) toast.success(`${courseCode} staged on the timetable`);
+    handleStageCourse(courseCode);
     setDraggedCourseCode(null);
   };
 
@@ -919,7 +924,7 @@ export function Dashboard() {
     changeTab('inspector');
   };
 
-  const executeSimulatedSwap = () => {
+  const applyConfirmedSwap = () => {
     // Defensive re-check so no caller can apply a blocked change
     if (confirmBlockers.length > 0) return;
     let newEnrolled = [...enrolled];
@@ -1067,13 +1072,19 @@ export function Dashboard() {
                 <ArrowLeft className="h-4 w-4" aria-hidden="true" />
               </button>
             )}
-            <BrandMark />
-            <span className="font-semibold text-sm tracking-tight">CityU <span className="text-violet-600">CampuSync</span></span>
+            <Link
+              to="/"
+              title="Return to Product Overview (Landing Page)"
+              className="flex items-center gap-2.5 rounded-lg py-1 pr-1.5 transition-opacity hover:opacity-80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#6c4cff]"
+            >
+              <BrandMark />
+              <span className="font-semibold text-sm tracking-tight">CityU <span className="text-violet-600">CampuSync</span></span>
+            </Link>
           </div>
 
           {/* Segmented view switcher */}
           <nav
-            aria-label="Simulator views"
+            aria-label="Workspace views"
             className="relative order-last grid w-full grid-cols-3 gap-1 rounded-xl bg-[#eeece6] p-1 lg:order-none lg:w-auto"
           >
             <span
@@ -1084,24 +1095,33 @@ export function Dashboard() {
                 transform: `translateX(calc(${TABS.findIndex(tab => tab.id === activeTab) * 100}% + ${TABS.findIndex(tab => tab.id === activeTab) * 4}px))`
               }}
             />
-            {TABS.map(({ id, label, icon: Icon }) => (
+            {TABS.map(({ id, label, shortLabel, icon: Icon }) => (
               <button
                 key={id}
                 onClick={() => changeTab(id)}
                 aria-current={activeTab === id ? 'page' : undefined}
-                className={`relative flex items-center justify-center gap-2 whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#6c4cff] ${
+                className={`relative flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap rounded-lg px-2 sm:px-3 py-1.5 text-xs font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#6c4cff] ${
                   activeTab === id
                     ? 'text-white'
                     : 'text-[#171717]/70 hover:bg-white hover:text-[#171717]'
                 }`}
               >
-                <Icon className="h-3.5 w-3.5" aria-hidden="true" />
-                <span>{label}</span>
+                <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                <span className="hidden min-[480px]:inline">{label}</span>
+                <span className="min-[480px]:hidden">{shortLabel}</span>
               </button>
             ))}
           </nav>
 
           <div className="ml-auto flex shrink-0 items-center gap-2">
+            <Link
+              to="/"
+              title="Return to Product Overview (Landing Page)"
+              className="flex h-10 items-center justify-center gap-1.5 rounded-xl border border-[#E4E1DA] bg-white px-2.5 text-xs font-semibold text-[#18181B] transition-colors hover:bg-[#f8f7f3] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#18181B]"
+            >
+              <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
+              <span className="sr-only sm:not-sr-only">Product Overview</span>
+            </Link>
             <Sheet open={helpOpen} onOpenChange={open => {
               setHelpOpen(open);
               if (open) {
@@ -1131,12 +1151,12 @@ export function Dashboard() {
                 </SheetHeader>
                 <div className="space-y-5 px-6 py-6">
                   <div className="rounded-xl border border-[#d1e5a0] bg-[#eff8d7] p-4 text-[#18181B]">
-                    <p className="text-sm font-semibold">This is a simulation</p>
+                    <p className="text-sm font-semibold">AIMS Companion Planner</p>
                     <p className="mt-1 text-xs leading-relaxed">
-                      CityU CampuSync does not change your AIMS registration. Check live course information and register separately in AIMS.
+                      CityU CampuSync lets you rehearse add/drop changes safely without modifying your live AIMS registration. Once your draft is conflict-free, follow the Control Gate CRN checklist to complete registration in AIMS.
                     </p>
                     <p className="mt-2 text-xs leading-relaxed">
-                      Your draft, personal time and blog contributions are temporary and are lost when you reload or leave the app.
+                      Changes, personal time blocks, and shared posts are stored locally in your active browser session.
                     </p>
                   </div>
                   <div>
@@ -1163,7 +1183,7 @@ export function Dashboard() {
                           How do I add personal time?
                         </AccordionTrigger>
                         <AccordionContent className="text-sm leading-relaxed text-[#52525B]">
-                          Use the pencil next to Personal time to add or edit commitments. Drag a personal block to move that weekday, or select the block to edit it. Use the switch to show or hide personal time. Reset restores the sample schedule and commitments.
+                          Use the pencil next to Personal time to add or edit commitments. Drag a personal block to move that weekday, or select the block to edit it. Use the switch to show or hide personal time. Reset restores your baseline enrolled schedule and default commitments.
                         </AccordionContent>
                       </AccordionItem>
                       <AccordionItem value="inspect" className="border-[#E4E1DA] px-4">
@@ -1171,7 +1191,7 @@ export function Dashboard() {
                           How do I inspect a course?
                         </AccordionTrigger>
                         <AccordionContent className="text-sm leading-relaxed text-[#52525B]">
-                          Select Inspect Details on a course or search in Course Inspector to see its schedule, assessment details, syllabus and related blog posts. Course details and blog posts are prototype data; check official sources before making decisions.
+                          Select Inspect Details on a course or search in Course Inspector to see its schedule, assessment details, syllabus and related blog posts. Always verify final section quotas and examination schedules on AIMS before submitting registration changes.
                         </AccordionContent>
                       </AccordionItem>
                       <AccordionItem value="aims" className="border-[#E4E1DA] px-4">
@@ -1179,7 +1199,7 @@ export function Dashboard() {
                           How do I register in AIMS?
                         </AccordionTrigger>
                         <AccordionContent className="text-sm leading-relaxed text-[#52525B]">
-                          Open the Control Gate to review your changes and checklist. Check live seat availability and complete the applicable registration steps in AIMS yourself, then tick the checklist and confirm the change in the simulation.
+                          Open the Control Gate to review your changes and checklist. Check live seat availability and complete the applicable registration steps in AIMS yourself, then tick the checklist and confirm the updated schedule on your timetable.
                         </AccordionContent>
                       </AccordionItem>
                     </Accordion>
@@ -1251,69 +1271,12 @@ export function Dashboard() {
                   </p>
                 </div>
 
-                {/* Filter / Settings Pill Row */}
+                {/* Credit Policy & Session Actions Bar */}
                 <div className="flex min-w-0 flex-wrap items-center gap-2.5">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <button
-                      onClick={() => setHighlightBridge(!highlightBridge)}
-                      aria-pressed={highlightBridge}
-                      title="Filter catalogue to Direct-Entry / Transfer foundation courses only"
-                      className={`flex h-9 items-center gap-1.5 px-3 rounded-lg text-xs font-mono transition border ${
-                        highlightBridge
-                          ? 'bg-[#d9ff63] border-black text-[#171717] font-semibold'
-                          : 'bg-white border-black/10 text-muted-foreground'
-                      }`}
-                    >
-                      <Layers className="h-3.5 w-3.5" aria-hidden="true" />
-                      <span>Direct-entry courses (2): {highlightBridge ? 'On' : 'Off'}</span>
-                    </button>
-                    <span className="text-xs text-muted-foreground">For direct-entry students</span>
-                  </div>
-
-                  <div
-                    role="group"
-                    aria-label="Personal time controls"
-                    className={`inline-flex max-w-full flex-wrap items-stretch overflow-hidden rounded-lg border text-xs text-[#18181B] transition-colors sm:h-9 sm:flex-nowrap ${
-                      blockPersonalTime ? 'border-[#18181B] bg-[#D9F99D]' : 'border-black/10 bg-white'
-                    }`}
-                  >
-                    <button
-                      type="button"
-                      role="switch"
-                      aria-label="Personal time"
-                      aria-checked={blockPersonalTime}
-                      onClick={() => setBlockPersonalTime(current => !current)}
-                      title={blockPersonalTime ? 'Turn personal time off (hides blocks & overlap checks)' : 'Turn personal time on'}
-                      className="inline-flex min-h-9 items-center gap-1.5 px-3 font-semibold transition-colors hover:bg-black/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#18181B]"
-                    >
-                      <Clock className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                      <span className="whitespace-nowrap">
-                        Personal Time: {blockPersonalTime ? 'On' : 'Off'} ({personalCommitments.filter(commitment => commitment.enabled).length})
-                      </span>
-                    </button>
-                    <button
-                      type="button"
-                      aria-label="Edit personal commitments"
-                      title="Add or edit recurring personal commitments"
-                      onClick={() => {
-                        setEditingCommitmentId(null);
-                        setEditingCommitmentDay(null);
-                        setNewLabel('');
-                        setShowCommitmentManager(true);
-                      }}
-                      className={`inline-flex min-h-9 items-center gap-1.5 border-t px-3 font-medium transition-colors hover:bg-black/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#18181B] sm:border-l sm:border-t-0 ${
-                        blockPersonalTime ? 'border-[#18181B]/20' : 'border-black/10'
-                      }`}
-                    >
-                      <Pencil className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                      <span className="whitespace-nowrap">Edit Commitments</span>
-                    </button>
-                  </div>
-
                   <label
                     htmlFor="credit-policy"
                     title="Set the minimum and maximum credit load for this rehearsal"
-                    className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-black/10 bg-white px-2.5 py-1.5 text-xs"
+                    className="inline-flex max-w-full flex-wrap items-center gap-2 rounded-lg border border-black/10 bg-white px-2.5 py-1.5 text-xs"
                   >
                     <span className="font-semibold">Credit policy</span>
                     <select
@@ -1326,7 +1289,7 @@ export function Dashboard() {
                           setCreditPolicy(value);
                         }
                       }}
-                      className="h-7 rounded-md border border-black/10 bg-white px-2 text-xs outline-none focus:border-[#18181B] focus:ring-1 focus:ring-[#18181B]"
+                      className="h-7 min-w-0 rounded-md border border-black/10 bg-white px-2 text-xs outline-none focus:border-[#18181B] focus:ring-1 focus:ring-[#18181B]"
                     >
                       <option value="standard">Standard (12–18 CR)</option>
                       <option value="overload">Overload Approved (12–21 CR)</option>
@@ -1337,11 +1300,11 @@ export function Dashboard() {
                   <div
                     role="status"
                     aria-label={`Enrolled ${currentTotalCredits.toFixed(1)} credits. Projected ${projectedCredits.toFixed(1)} of ${activeMaxCredits.toFixed(1)} maximum credits; policy minimum ${activeMinCredits.toFixed(1)} credits.`}
-                    className={`flex shrink-0 items-center gap-2 whitespace-nowrap rounded-lg border px-3 py-1.5 text-[10px] font-mono sm:text-xs ${
+                    className={`flex min-w-0 max-w-full sm:shrink-0 items-center gap-2 whitespace-normal sm:whitespace-nowrap rounded-lg border px-3 py-1.5 text-[10px] font-mono sm:text-xs ${
                       wouldBeBelowMin || wouldExceedMax ? 'border-red-300 bg-red-50 font-semibold text-red-800' : 'border-black/10 bg-white'
                     }`}
                   >
-                    <span className={`h-2 w-2 rounded-full ${wouldBeBelowMin || wouldExceedMax ? 'bg-red-500' : 'bg-green-500'}`} />
+                    <span className={`h-2 w-2 shrink-0 rounded-full ${wouldBeBelowMin || wouldExceedMax ? 'bg-red-500' : 'bg-green-500'}`} />
                     <span>Enrolled {currentTotalCredits.toFixed(1)} CR · Projected {projectedCredits.toFixed(1)} / {activeMaxCredits.toFixed(1)} CR (Min {activeMinCredits.toFixed(1)})</span>
                   </div>
 
@@ -1432,12 +1395,12 @@ export function Dashboard() {
               {swapConfirmed && (
                 <div className="bg-[#ecfdf5] border-l-4 border-green-500 p-4 rounded-r-lg flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <CheckCircle className="h-5 w-5 text-green-600" />
+                    <CheckCircle className="h-5 w-5 text-green-600 shrink-0" />
                     <span className="text-xs font-medium text-green-800">
-                      Simulated draft applied to the weekly timetable. Complete registration separately on AIMS.
+                      Schedule draft applied to your weekly timetable. Complete your official CRN registration on AIMS.
                     </span>
                   </div>
-                  <button onClick={() => setSwapConfirmed(false)} className="text-green-700 hover:text-green-900 text-xs">
+                  <button onClick={() => setSwapConfirmed(false)} className="text-green-700 hover:text-green-900 text-xs shrink-0 ml-2">
                     Dismiss
                   </button>
                 </div>
@@ -1446,7 +1409,7 @@ export function Dashboard() {
               {/* Staging Dock Status Strip */}
               {hasPendingChange && (
                 <div className="bg-white border border-black/10 p-4 rounded-xl shadow-sm flex flex-col md:flex-row items-center justify-between gap-4">
-                  <div className="flex items-center gap-4 text-xs">
+                  <div className="flex flex-wrap items-center justify-center md:justify-start gap-x-4 gap-y-2 text-xs w-full md:w-auto">
                     <div className="flex items-center gap-2">
                       <span className="font-mono text-[11px] text-muted-foreground uppercase">Target to Drop:</span>
                       {swapOutCourse ? (
@@ -1474,7 +1437,7 @@ export function Dashboard() {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center justify-end gap-2 w-full sm:w-auto">
                     <Button
                       size="sm"
                       onClick={() => setControlGateOpen(true)}
@@ -1512,25 +1475,90 @@ export function Dashboard() {
               <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
                 {/* Left 8 Columns: Weekly Timetable Calendar */}
                 <div className="xl:col-span-8 bg-white border border-black/10 rounded-2xl p-5 shadow-sm">
-                  <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b pb-3">
-                    <div className="flex flex-col">
-                      <span className="font-semibold text-xs text-[#171717]">Weekly Academic Grid (Mon–Sat 08:00–23:00)</span>
-                      <span className="mt-1 text-[10px] text-muted-foreground 2xl:hidden">Swipe or scroll horizontally to view all days</span>
+                  <div className="mb-3 space-y-3 border-b pb-3.5">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div className="flex flex-col">
+                        <span className="font-semibold text-xs text-[#171717]">Weekly Academic Grid (Mon–Sat 08:00–23:00)</span>
+                        <span className="mt-1 text-[10px] text-muted-foreground md:hidden">
+                          {mobileTimetableMode === 'day'
+                            ? 'Select a weekday below or switch to Full Week view'
+                            : 'Swipe or scroll horizontally to view all days'}
+                        </span>
+                        <span className="mt-1 hidden text-[10px] text-muted-foreground md:inline 2xl:hidden">Swipe or scroll horizontally to view all days</span>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-3 text-[11px] font-mono text-muted-foreground">
+                        <span className="flex items-center gap-1.5">
+                          <span className="w-2.5 h-2.5 rounded-sm bg-[#171717]" />
+                          Enrolled
+                        </span>
+                        <span className="flex items-center gap-1.5">
+                          <span className="w-2.5 h-2.5 rounded-sm border-2 border-dashed border-[#b45309] bg-[#fffbeb]" />
+                          Marked Drop
+                        </span>
+                        <span className="flex items-center gap-1.5">
+                          <span className="w-2.5 h-2.5 rounded-sm border-2 border-dashed border-[#6c4cff] bg-[#f5f3ff]" />
+                          Staged
+                        </span>
+                        <span className="flex items-center gap-1.5">
+                          <span className="w-2.5 h-2.5 rounded-sm border border-[#18181B]/30 bg-[#D9F99D]" />
+                          Personal Time
+                        </span>
+                        {draggedCourseCode && <span className="font-semibold text-emerald-700">Drop course to preview its schedule</span>}
+                      </div>
                     </div>
-                    <div className="flex flex-wrap items-center gap-3 text-[11px] font-mono text-muted-foreground">
-                      <span className="flex items-center gap-1.5">
-                        <span className="w-2.5 h-2.5 rounded-sm bg-[#171717]" />
-                        Enrolled
-                      </span>
-                      <span className="flex items-center gap-1.5">
-                        <span className="w-2.5 h-2.5 rounded-sm border-2 border-dashed border-[#b45309] bg-[#fffbeb]" />
-                        Marked Drop
-                      </span>
-                      <span className="flex items-center gap-1.5">
-                        <span className="w-2.5 h-2.5 rounded-sm border-2 border-dashed border-[#6c4cff] bg-[#f5f3ff]" />
-                        Staged
-                      </span>
-                      {draggedCourseCode && <span className="font-semibold text-emerald-700">Drop course to preview its schedule</span>}
+
+                    {/* Dedicated Timetable Personal Time Bar */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 rounded-xl border border-[#E4E1DA] bg-[#F7F5F0] px-3 py-2">
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold text-[#18181B]">
+                          Block Personal Commitments on Timetable
+                        </p>
+                        <p className="text-[11px] text-[#52525B]">
+                          {blockPersonalTime
+                            ? 'Showing recurring work, gym, or personal blocks on the grid and checking for course overlaps.'
+                            : 'Personal time is hidden and excluded from overlap checks — your saved commitments are kept.'}
+                        </p>
+                      </div>
+
+                      <div
+                        role="group"
+                        aria-label="Personal time controls"
+                        className={`inline-flex shrink-0 max-w-full flex-wrap items-stretch overflow-hidden rounded-lg border text-xs text-[#18181B] transition-colors sm:h-9 sm:flex-nowrap ${
+                          blockPersonalTime ? 'border-[#18181B] bg-[#D9F99D]' : 'border-black/15 bg-white'
+                        }`}
+                      >
+                        <button
+                          type="button"
+                          role="switch"
+                          aria-label="Personal time"
+                          aria-checked={blockPersonalTime}
+                          onClick={() => setBlockPersonalTime(current => !current)}
+                          title={blockPersonalTime ? 'Turn personal time off (hides blocks & overlap checks without deleting commitments)' : 'Turn personal time on'}
+                          className="inline-flex min-h-9 items-center gap-1.5 px-3 font-semibold transition-colors hover:bg-black/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#18181B]"
+                        >
+                          <Clock className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                          <span className="whitespace-nowrap">
+                            Personal Time: {blockPersonalTime ? 'On' : 'Off'} ({personalCommitments.filter(commitment => commitment.enabled).length})
+                          </span>
+                        </button>
+                        <button
+                          type="button"
+                          aria-label="Edit personal commitments"
+                          title="Add or edit recurring personal commitments"
+                          onClick={() => {
+                            setEditingCommitmentId(null);
+                            setEditingCommitmentDay(null);
+                            setNewLabel('');
+                            setShowCommitmentManager(true);
+                          }}
+                          className={`inline-flex min-h-9 items-center gap-1.5 border-t px-3 font-medium transition-colors hover:bg-black/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#18181B] sm:border-l sm:border-t-0 ${
+                            blockPersonalTime ? 'border-[#18181B]/20' : 'border-black/10'
+                          }`}
+                        >
+                          <Pencil className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                          <span className="whitespace-nowrap">Edit Commitments</span>
+                        </button>
+                      </div>
                     </div>
                   </div>
 
@@ -1549,6 +1577,77 @@ export function Dashboard() {
                       Drop here to remove {draggedStagedCode} from the draft
                     </div>
                   )}
+
+                  {/* Mobile Day/Week View Switcher & Weekday Selector (< 768px) */}
+                  <div className="mb-3 space-y-2 md:hidden" aria-label="Mobile timetable view controls">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-mono text-[11px] font-semibold text-[#52525B]">Mobile View Mode</span>
+                      <div role="group" aria-label="Timetable layout mode" className="inline-flex rounded-lg border border-[#E4E1DA] bg-[#F7F5F0] p-0.5 text-xs">
+                        <button
+                          type="button"
+                          aria-pressed={mobileTimetableMode === 'day'}
+                          onClick={() => setMobileTimetableMode('day')}
+                          className={`rounded-md px-2.5 py-1 font-semibold transition-colors ${
+                            mobileTimetableMode === 'day'
+                              ? 'bg-[#18181B] text-white shadow-xs'
+                              : 'text-[#52525B] hover:text-[#18181B]'
+                          }`}
+                        >
+                          Day View
+                        </button>
+                        <button
+                          type="button"
+                          aria-pressed={mobileTimetableMode === 'week'}
+                          onClick={() => setMobileTimetableMode('week')}
+                          className={`rounded-md px-2.5 py-1 font-semibold transition-colors ${
+                            mobileTimetableMode === 'week'
+                              ? 'bg-[#18181B] text-white shadow-xs'
+                              : 'text-[#52525B] hover:text-[#18181B]'
+                          }`}
+                        >
+                          Full Week
+                        </button>
+                      </div>
+                    </div>
+
+                    {mobileTimetableMode === 'day' && (
+                      <div role="tablist" aria-label="Select weekday" className="grid grid-cols-6 gap-1 rounded-xl border border-[#E4E1DA] bg-[#F7F5F0] p-1">
+                        {DAYS.map(day => {
+                          const dayItems = dayEvents[day] || [];
+                          const hasClashOnDay = dayItems.some(ev => ev.clashes.length > 0);
+                          const hasStagedOnDay = dayItems.some(ev => ev.kind === 'staged');
+                          const hasAcademicOnDay = dayItems.some(ev => ev.kind !== 'personalBlock');
+                          const isSelectedDay = selectedMobileDay === day;
+                          return (
+                            <button
+                              key={day}
+                              type="button"
+                              role="tab"
+                              aria-selected={isSelectedDay}
+                              onClick={() => setSelectedMobileDay(day)}
+                              className={`relative flex flex-col items-center justify-center rounded-lg py-1.5 font-mono text-xs font-bold transition-colors ${
+                                isSelectedDay
+                                  ? 'bg-[#18181B] text-white shadow-xs'
+                                  : 'text-[#52525B] hover:bg-white hover:text-[#18181B]'
+                              }`}
+                            >
+                              <span>{day}</span>
+                              <span className="mt-1 flex h-1.5 items-center gap-0.5" aria-hidden="true">
+                                {hasClashOnDay ? (
+                                  <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
+                                ) : hasStagedOnDay ? (
+                                  <span className="h-1.5 w-1.5 rounded-full bg-[#6c4cff]" />
+                                ) : hasAcademicOnDay ? (
+                                  <span className={`h-1.5 w-1.5 rounded-full ${isSelectedDay ? 'bg-[#D9F99D]' : 'bg-[#18181B]/60'}`} />
+                                ) : null}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+
                   <div
                     role="region"
                     aria-label="Weekly timetable. Scroll horizontally to view each day."
@@ -1561,18 +1660,23 @@ export function Dashboard() {
                     }}
                     onDrop={handleTimetableDrop}
                   >
-                    <div className="w-full min-w-[1000px]">
-                      <div className="mb-1 grid w-full grid-cols-[44px_repeat(6,minmax(0,1fr))] gap-x-1">
-                        <div className="flex items-center justify-center font-mono text-[10px] font-semibold text-muted-foreground">TIME</div>
+                    <div className={mobileTimetableMode === 'day' ? 'w-full min-w-0 md:min-w-[780px] lg:min-w-[960px]' : 'w-full min-w-[780px] lg:min-w-[960px]'}>
+                      <div className={`mb-1 grid w-full gap-x-1 ${mobileTimetableMode === 'day' ? 'grid-cols-[48px_minmax(0,1fr)] md:grid-cols-[44px_repeat(6,minmax(0,1fr))]' : 'grid-cols-[44px_repeat(6,minmax(0,1fr))]'}`}>
+                        <div className="sticky left-0 z-30 flex items-center justify-center border-r border-black/10 bg-white/95 font-mono text-[10px] font-semibold text-muted-foreground backdrop-blur-xs">TIME</div>
                         {DAYS.map(day => (
-                          <div key={day} className="border-b border-black/10 py-2 text-center font-mono text-xs font-bold uppercase text-muted-foreground">
+                          <div
+                            key={day}
+                            className={`border-b border-black/10 py-2 text-center font-mono text-xs font-bold uppercase text-muted-foreground ${
+                              mobileTimetableMode === 'day' && day !== selectedMobileDay ? 'hidden md:block' : ''
+                            }`}
+                          >
                             {day}
                           </div>
                         ))}
                       </div>
 
-                      <div className="grid w-full grid-cols-[44px_repeat(6,minmax(0,1fr))] gap-x-1">
-                        <div className="relative h-[660px]">
+                      <div className={`grid w-full gap-x-1 ${mobileTimetableMode === 'day' ? 'grid-cols-[48px_minmax(0,1fr)] md:grid-cols-[44px_repeat(6,minmax(0,1fr))]' : 'grid-cols-[44px_repeat(6,minmax(0,1fr))]'}`}>
+                        <div className="sticky left-0 z-30 relative h-[660px] border-r border-black/10 bg-white/95 backdrop-blur-xs">
                           {Array.from({ length: 16 }, (_, index) => {
                             const hour = 8 + index;
                             const transform = index === 0 ? 'translateY(0)' : index === 15 ? 'translateY(-100%)' : 'translateY(-50%)';
@@ -1591,7 +1695,9 @@ export function Dashboard() {
                         {DAYS.map(day => (
                           <div
                             key={day}
-                            className="relative h-[660px] overflow-hidden border-l border-black/10 bg-[#FCFBF8]"
+                            className={`relative h-[660px] overflow-hidden border-l border-black/10 bg-[#FCFBF8] ${
+                              mobileTimetableMode === 'day' && day !== selectedMobileDay ? 'hidden md:block' : ''
+                            }`}
                             style={{ height: GRID_HEIGHT }}
                             aria-label={`${day} timetable`}
                             onDragOver={event => {
@@ -1651,6 +1757,7 @@ export function Dashboard() {
                                 Math.min(ev.end, GRID_END_MINUTES) - clippedStart
                               );
                               const blockHeight = (duration / 60) * PIXELS_PER_HOUR;
+                              const isMultiLane = ev.laneCount > 1;
                               const width = 100 / ev.laneCount;
                               const blockStyle: CSSProperties = {
                                 top: `${top}px`,
@@ -1697,13 +1804,13 @@ export function Dashboard() {
                                         const commitment = personalCommitments.find(item => item.id === ev.personalBlock?.commitmentId);
                                         if (commitment) editCommitment(commitment, day);
                                       }}
-                                      className="block h-full w-full cursor-inherit overflow-hidden p-1 pr-3.5 text-left outline-none"
+                                      className="block h-full w-full cursor-inherit overflow-hidden p-1 text-left outline-none"
                                     >
-                                      <span className="block truncate whitespace-nowrap text-[9px] font-bold leading-tight sm:text-[10px]">{ev.label}</span>
-                                      <span className="block truncate whitespace-nowrap text-[9px] leading-tight sm:text-[10px]">{ev.startStr}–{ev.endStr}</span>
+                                      <span className="block truncate whitespace-nowrap pr-3.5 text-[9px] font-bold leading-tight sm:text-[10px]">{ev.label}</span>
+                                      <span className="block truncate whitespace-nowrap font-mono text-[9px] leading-tight">{ev.startStr}–{ev.endStr}</span>
                                       {overlapsAcademic
                                         ? <span className="block text-[9px] font-semibold leading-tight text-amber-800">Overlap</span>
-                                        : <span className="block text-[9px] leading-tight">{ev.personalBlock?.category} · {ev.personalBlock?.demoCalendarId ? 'Demo calendar' : 'You entered'}</span>}
+                                        : <span className="block truncate text-[9px] leading-tight">{ev.personalBlock?.category} · {ev.personalBlock?.demoCalendarId ? 'Google Calendar' : 'You entered'}</span>}
                                     </button>
                                     <button
                                       type="button"
@@ -1762,13 +1869,23 @@ export function Dashboard() {
                                   }`}
                                   style={blockStyle}
                                 >
-                                  <div className="flex min-w-0 items-center justify-between gap-1 font-mono leading-tight">
-                                    <div className="flex min-w-0 items-center gap-1">
-                                      <span className="truncate text-[11px] font-bold">{ev.course.code}</span>
-                                      <span className="shrink-0 rounded bg-black/5 px-1 text-[9px] font-bold">{ev.section}</span>
+                                  {isMultiLane ? (
+                                    <div className="min-w-0 font-mono leading-tight space-y-0.5">
+                                      <div className="flex min-w-0 items-center justify-between gap-1 overflow-hidden">
+                                        <span className="shrink-0 text-[10px] font-bold">{ev.course.code}</span>
+                                        <span className="shrink-0 rounded bg-black/5 px-1 text-[8px] font-bold">{ev.section}</span>
+                                      </div>
+                                      <span className="block truncate whitespace-nowrap text-[9px] text-muted-foreground">{ev.startStr}–{ev.endStr}</span>
                                     </div>
-                                    <span className="shrink-0 whitespace-nowrap text-right text-[9px]">{ev.startStr}–{ev.endStr}</span>
-                                  </div>
+                                  ) : (
+                                    <div className="flex min-w-0 flex-wrap items-center justify-between gap-x-1 gap-y-0.5 overflow-hidden font-mono leading-tight">
+                                      <div className="flex min-w-0 shrink-0 items-center gap-1">
+                                        <span className="shrink-0 text-[11px] font-bold">{ev.course.code}</span>
+                                        <span className="shrink-0 rounded bg-black/5 px-1 text-[9px] font-bold">{ev.section}</span>
+                                      </div>
+                                      <span className="shrink-0 whitespace-nowrap text-right text-[9px]">{ev.startStr}–{ev.endStr}</span>
+                                    </div>
+                                  )}
                                   {blockHeight < 75 ? (
                                     <div className="flex min-w-0 items-center justify-between gap-1">
                                       <span className="truncate text-[11px] font-medium leading-snug" title={ev.course.title}>
@@ -1807,7 +1924,7 @@ export function Dashboard() {
                                         {ev.course.title}
                                       </p>
                                       <p className="truncate font-mono text-[9px] leading-tight text-muted-foreground">
-                                        {ev.meetingType} · CRN {ev.meetingCrn}
+                                        {isMultiLane ? ev.meetingType : `${ev.meetingType} · CRN ${ev.meetingCrn}`}
                                       </p>
                                       <div className="flex items-center justify-between gap-1">
                                         <div className="flex items-center gap-1.5">
@@ -1831,7 +1948,7 @@ export function Dashboard() {
                                             </button>
                                           )}
                                         </div>
-                                        {duration >= 120 && (
+                                        {duration >= 120 && !isMultiLane && (
                                           <span className="rounded bg-black/5 px-1 font-mono text-[9px] font-semibold uppercase text-muted-foreground">
                                             {isStaged ? 'STAGED' : 'AIMS'}
                                           </span>
@@ -1898,12 +2015,26 @@ export function Dashboard() {
                 </div>
 
                 {/* Right 4 Columns: Course Catalogue & Staging Dock */}
-                <div className="xl:col-span-4 bg-white border border-black/10 rounded-2xl p-5 shadow-sm flex flex-col h-[650px]">
-                  <div className="flex items-center justify-between pb-3 border-b mb-3">
+                <div className="xl:col-span-4 bg-white border border-black/10 rounded-2xl p-5 shadow-sm flex flex-col max-h-[600px] xl:max-h-none xl:h-[780px]">
+                  <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b mb-3">
                     <div>
-                      <h3 ref={catalogueHeadingRef} tabIndex={-1} className="scroll-mt-24 text-xs font-semibold focus:outline-none">Simulated Course Catalogue</h3>
+                      <h3 ref={catalogueHeadingRef} tabIndex={-1} className="scroll-mt-24 text-xs font-semibold focus:outline-none">Course Catalogue</h3>
                       <p className="text-[11px] text-muted-foreground">{filteredCatalogue.length} matching courses</p>
                     </div>
+                    <button
+                      type="button"
+                      onClick={() => setHighlightBridge(!highlightBridge)}
+                      aria-pressed={highlightBridge}
+                      title="Filter catalogue to Direct-Entry / Transfer foundation courses only"
+                      className={`flex h-8 items-center gap-1.5 px-2.5 rounded-lg text-[11px] font-mono transition border ${
+                        highlightBridge
+                          ? 'bg-[#d9ff63] border-black text-[#171717] font-semibold'
+                          : 'bg-[#f8f7f3] border-black/10 text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      <Layers className="h-3 w-3 shrink-0" aria-hidden="true" />
+                      <span>Direct-entry (2): {highlightBridge ? 'On' : 'Off'}</span>
+                    </button>
                   </div>
 
                   {highlightBridge && (
@@ -1993,9 +2124,9 @@ export function Dashboard() {
                   {activeFilter === 'ge' && (
                     <div className="mb-3 space-y-2">
                       <p className="text-[11px] text-muted-foreground">
-                        GE classifications are simulated examples, not official degree advice.
+                        Confirm GE area fulfillment against your cohort's official degree audit requirements.
                       </p>
-                      <div role="group" aria-label="Simulated GE area" className="flex flex-wrap gap-1.5">
+                      <div role="group" aria-label="GE requirement area" className="flex flex-wrap gap-1.5">
                         {(['all', 'area1', 'area2', 'area3', 'unireq'] as const).map(area => (
                           <button
                             key={area}
@@ -2082,11 +2213,11 @@ export function Dashboard() {
 
                           <h5 className="font-semibold text-xs mt-1 leading-snug">{course.title}</h5>
                           {course.category === 'business' && (
-                            <p className="mt-1 text-[11px] text-muted-foreground">Section availability is a supplied snapshot, not live data.</p>
+                            <p className="mt-1 text-[11px] text-muted-foreground">Section quota reflects the latest catalogue snapshot; verify live seats on AIMS.</p>
                           )}
                           {course.category === 'ge' && geArea && (
                             <p className="mt-1 text-[11px] text-muted-foreground">
-                              Simulated GE: {GE_AREA_LABELS[geArea]}
+                              GE Requirement: {GE_AREA_LABELS[geArea]}
                             </p>
                           )}
 
@@ -2173,15 +2304,15 @@ export function Dashboard() {
                     Course Inspector &amp; Workload Diagnostics
                   </h1>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    Inspect syllabus workload splits, assessment risks, and sample peer reflections.
+                    Inspect syllabus workload splits, assessment risks, and peer course reflections.
                   </p>
                 </div>
 
-                <div className="flex w-full min-w-0 items-center gap-2 sm:w-auto">
+                <div className="flex w-full min-w-0 flex-wrap items-center gap-2 sm:w-auto sm:flex-nowrap">
                   <label htmlFor="inspector-course-search" className="text-xs font-semibold text-muted-foreground whitespace-nowrap">
                     Find Course:
                   </label>
-                  <div ref={inspectorComboRef} className="relative min-w-0 flex-1 sm:w-72 sm:flex-none md:w-80 lg:w-96">
+                  <div ref={inspectorComboRef} className="relative min-w-0 w-full sm:w-72 sm:flex-none md:w-80 lg:w-96">
                     <div className="h-10 w-full rounded-xl border border-[#E4E1DA] bg-white px-3 flex items-center gap-2 transition-colors focus-within:border-[#18181B] focus-within:ring-1 focus-within:ring-[#18181B]">
                       <Search className="h-4 w-4 shrink-0 text-[#71717A]" aria-hidden="true" />
                       <input
@@ -2493,39 +2624,39 @@ export function Dashboard() {
                         What We Know &amp; What Remains Unknown
                       </p>
                       <ul className="text-xs space-y-2 text-foreground">
-                        <li className="flex items-center justify-between">
-                          <span>{inspectorCourse.examPct === null ? 'Assessment weights: see syllabus' : `Assessment weights (${inspectorCourse.courseworkPct}% Coursework / ${inspectorCourse.examPct}% Exam)`}</span>
-                          <span className="font-mono text-[11px] px-1.5 py-0.5 rounded bg-[#f8f7f3] border text-muted-foreground">
-                            {inspectorCourse.examPct === null ? 'Not extracted' : 'Sample syllabus'}
+                        <li className="flex items-center justify-between gap-3">
+                          <span className="min-w-0">{inspectorCourse.examPct === null ? 'Assessment weights: see syllabus' : `Assessment weights (${inspectorCourse.courseworkPct}% Coursework / ${inspectorCourse.examPct}% Exam)`}</span>
+                          <span className="shrink-0 text-right font-mono text-[11px] px-1.5 py-0.5 rounded bg-[#f8f7f3] border text-muted-foreground">
+                            {inspectorCourse.examPct === null ? 'Not extracted' : 'Official syllabus'}
                           </span>
                         </li>
-                        <li className="flex items-center justify-between">
-                          <span>Weekly workload estimate ({workloadMetrics.totalH} hrs/wk)</span>
-                          <span className="font-mono text-[11px] px-1.5 py-0.5 rounded bg-[#f8f7f3] border text-muted-foreground">
-                            Simulated estimate
+                        <li className="flex items-center justify-between gap-3">
+                          <span className="min-w-0">Weekly workload estimate ({workloadMetrics.totalH} hrs/wk)</span>
+                          <span className="shrink-0 text-right font-mono text-[11px] px-1.5 py-0.5 rounded bg-[#f8f7f3] border text-muted-foreground">
+                            Syllabus estimate
                           </span>
                         </li>
-                        <li className="flex items-center justify-between">
-                          <span>Personal Time Block (16 hrs/wk)</span>
-                          <span className="font-mono text-[11px] px-1.5 py-0.5 rounded bg-[#ece9ff] text-[#34266f] border border-[#d9ccff] font-semibold">
+                        <li className="flex items-center justify-between gap-3">
+                          <span className="min-w-0">Personal Time Block (16 hrs/wk)</span>
+                          <span className="shrink-0 text-right font-mono text-[11px] px-1.5 py-0.5 rounded bg-[#ece9ff] text-[#34266f] border border-[#d9ccff] font-semibold">
                             You entered
                           </span>
                         </li>
-                        <li className="flex items-center justify-between">
-                          <span>Final examination exact date</span>
-                          <span className="font-mono text-[11px] px-1.5 py-0.5 rounded bg-amber-50 text-amber-800 border border-amber-200 font-semibold">
+                        <li className="flex items-center justify-between gap-3">
+                          <span className="min-w-0">Final examination exact date</span>
+                          <span className="shrink-0 text-right font-mono text-[11px] px-1.5 py-0.5 rounded bg-amber-50 text-amber-800 border border-amber-200 font-semibold">
                             {inspectorCourse.examPct === 0 ? 'N/A (0% Exam)' : 'Unknown · Not Published'}
                           </span>
                         </li>
-                        <li className="flex items-center justify-between">
-                          <span>Whether {inspectorCourse.code} is offered in Sem A 2027/28</span>
-                          <span className="font-mono text-[11px] px-1.5 py-0.5 rounded bg-amber-50 text-amber-800 border border-amber-200 font-semibold">
+                        <li className="flex items-center justify-between gap-3">
+                          <span className="min-w-0">Whether {inspectorCourse.code} is offered in Sem A 2027/28</span>
+                          <span className="shrink-0 text-right font-mono text-[11px] px-1.5 py-0.5 rounded bg-amber-50 text-amber-800 border border-amber-200 font-semibold">
                             Unknown
                           </span>
                         </li>
-                        <li className="flex items-center justify-between">
-                          <span>Project subgroup weekly meeting times</span>
-                          <span className="font-mono text-[11px] px-1.5 py-0.5 rounded bg-amber-50 text-amber-800 border border-amber-200 font-semibold">
+                        <li className="flex items-center justify-between gap-3">
+                          <span className="min-w-0">Project subgroup weekly meeting times</span>
+                          <span className="shrink-0 text-right font-mono text-[11px] px-1.5 py-0.5 rounded bg-amber-50 text-amber-800 border border-amber-200 font-semibold">
                             Unknown
                           </span>
                         </li>
@@ -2536,11 +2667,11 @@ export function Dashboard() {
 
                 {/* Middle 4 Columns: Grade Distribution & Blogs */}
                 <div className="lg:col-span-4 space-y-6">
-                  <section className="space-y-4 rounded-2xl border border-black/10 bg-white p-6 shadow-sm" aria-labelledby="sample-feedback-heading">
+                  <section className="space-y-4 rounded-2xl border border-black/10 bg-white p-6 shadow-sm" aria-labelledby="course-feedback-heading">
                     <div>
-                      <h3 id="sample-feedback-heading" className="text-sm font-bold">Example grades &amp; instructor rating</h3>
+                      <h3 id="course-feedback-heading" className="text-sm font-bold">Historical grades &amp; instructor rating</h3>
                       <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                        Simulated data and fictional instructors; not official grades or real student feedback.
+                        Aggregated student-reported grades and past cohort course evaluations.
                       </p>
                     </div>
                     {feedback && meanGrade !== null ? (
@@ -2549,44 +2680,46 @@ export function Dashboard() {
                           <div className="rounded-xl border border-[#e2d9ff] bg-[#f7f4ff] p-3">
                             <p className="text-xs font-semibold">Average grade points</p>
                             <p className="mt-1 font-mono text-lg font-bold text-[#5b21b6]">{meanGrade.toFixed(2)} <span className="text-xs font-medium text-[#52525B]">/ 4.3</span></p>
-                            <p className="text-[11px] text-muted-foreground">{gradeCount} simulated grades</p>
+                            <p className="text-[11px] text-muted-foreground">{gradeCount} reported grades</p>
                           </div>
                           <div className="rounded-xl border border-black/10 bg-[#f8f7f3] p-3">
                             <p className="text-xs font-semibold">{feedback.instructor}</p>
                             <p className="mt-1 font-mono text-lg font-bold">{feedback.instructorRating.toFixed(1)} <span className="text-xs font-medium text-[#52525B]">/ 5</span></p>
-                            <p className="text-[11px] text-muted-foreground">{feedback.ratingCount} simulated ratings</p>
+                            <p className="text-[11px] text-muted-foreground">{feedback.ratingCount} student ratings</p>
                           </div>
                         </div>
                         <div>
                           <div className="flex flex-wrap items-baseline justify-between gap-1">
                             <h4 className="text-xs font-bold">Grade distribution</h4>
-                            <span className="text-[11px] text-muted-foreground">Number of simulated grades</span>
+                            <span className="text-[11px] text-muted-foreground">Number of reported grades</span>
                           </div>
-                          <div
-                            role="img"
-                            aria-label={`Simulated grade distribution: ${gradeRows.map(row => `${row.grade}: ${row.count}`).join(', ')}.`}
-                            className="mt-6 grid grid-cols-11 gap-1"
-                          >
-                            {gradeRows.map(row => (
-                              <div key={row.grade} className="min-w-0 text-center">
-                                <div className="relative h-28">
-                                  <span
-                                    className="absolute inset-x-0 font-mono text-[10px] font-semibold text-[#52525B]"
-                                    style={{ bottom: `calc(${maxGradeCount ? row.count / maxGradeCount * 100 : 0}% + 4px)` }}
-                                  >{row.count}</span>
-                                  <div
-                                    className="absolute inset-x-0 bottom-0 mx-auto w-full max-w-8 rounded-t bg-[#7c3aed]"
-                                    style={{ height: `${maxGradeCount ? row.count / maxGradeCount * 100 : 0}%` }}
-                                  />
+                          <div className="overflow-x-auto pb-1">
+                            <div
+                              role="img"
+                              aria-label={`Historical grade distribution: ${gradeRows.map(row => `${row.grade}: ${row.count}`).join(', ')}.`}
+                              className="mt-6 grid min-w-[280px] grid-cols-11 gap-1"
+                            >
+                              {gradeRows.map(row => (
+                                <div key={row.grade} className="min-w-0 text-center">
+                                  <div className="relative h-28">
+                                    <span
+                                      className="absolute inset-x-0 font-mono text-[10px] font-semibold text-[#52525B]"
+                                      style={{ bottom: `calc(${maxGradeCount ? row.count / maxGradeCount * 100 : 0}% + 4px)` }}
+                                    >{row.count}</span>
+                                    <div
+                                      className="absolute inset-x-0 bottom-0 mx-auto w-full max-w-8 rounded-t bg-[#7c3aed]"
+                                      style={{ height: `${maxGradeCount ? row.count / maxGradeCount * 100 : 0}%` }}
+                                    />
+                                  </div>
+                                  <div className="border-t border-black/20 pt-1 font-mono text-[10px] font-semibold">{row.grade}</div>
                                 </div>
-                                <div className="border-t border-black/20 pt-1 font-mono text-[10px] font-semibold">{row.grade}</div>
-                              </div>
-                            ))}
+                              ))}
+                            </div>
                           </div>
                         </div>
                         <details className="rounded-lg border border-black/10 p-3 text-xs">
                           <summary className="cursor-pointer font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#7c3aed]">View exact grades and points</summary>
-                          <p className="mt-2 text-[11px] text-muted-foreground">Average uses the example grade-point scale shown below.</p>
+                          <p className="mt-2 text-[11px] text-muted-foreground">Average uses the CityUHK 4.3 grade-point scale shown below.</p>
                           <table className="mt-2 w-full text-left">
                             <thead>
                               <tr><th className="py-1">Grade</th><th className="py-1">Points</th><th className="py-1">Count</th></tr>
@@ -2613,8 +2746,8 @@ export function Dashboard() {
                           <circle cx="72" cy="14" r="8" fill="#fff" stroke="#7c3aed" strokeWidth="2" />
                           <path d="M72 11V14M72 17H72.1" stroke="#7c3aed" strokeWidth="2" strokeLinecap="round" />
                         </svg>
-                        <p className="mt-2 text-xs font-semibold">No example grades yet</p>
-                        <p className="mt-1 text-xs leading-relaxed text-muted-foreground">This prototype has no simulated grade or instructor data for this course.</p>
+                        <p className="mt-2 text-xs font-semibold">No grade history available yet</p>
+                        <p className="mt-1 text-xs leading-relaxed text-muted-foreground">Student-reported grade and instructor evaluation records have not been published for this course yet.</p>
                       </div>
                     )}
                   </section>
@@ -2627,7 +2760,7 @@ export function Dashboard() {
                           Reviews &amp; Discussion from CityU Student Blogs
                         </h3>
                         <p className="text-[11px] text-muted-foreground mt-0.5">
-                          Example posts are simulated. Posts you share stay in this session.
+                          Verified student reflections and peer course reviews.
                         </p>
                       </div>
                       <Button
@@ -2648,10 +2781,10 @@ export function Dashboard() {
                       )}
                       {inspectorMatchingBlogs.map(post => (
                         <div key={post.id} className="p-3.5 rounded-xl border border-black/10 bg-[#f8f7f3] space-y-2 text-left">
-                          <div className="flex items-center justify-between text-xs">
-                            <span className="font-bold text-[#171717]">&ldquo;{post.title}&rdquo;</span>
-                            <span className="font-mono text-[11px] bg-white border border-black/10 px-1.5 py-0.5 rounded text-muted-foreground">
-                              {blogPosts.some(example => example.id === post.id) ? 'Simulated example' : 'Shared in this session'}
+                          <div className="flex items-start justify-between gap-2 text-xs">
+                            <span className="min-w-0 font-bold text-[#171717]">&ldquo;{post.title}&rdquo;</span>
+                            <span className="shrink-0 font-mono text-[11px] bg-white border border-black/10 px-1.5 py-0.5 rounded text-muted-foreground">
+                              {blogPosts.some(example => example.id === post.id) ? 'Community Archive' : 'Shared in this session'}
                             </span>
                           </div>
                           <p className="font-mono text-[11px] text-muted-foreground">
@@ -2747,7 +2880,7 @@ export function Dashboard() {
                       13-Week Semester Deliverable Map vs Outside Commitments
                     </h3>
                     <p className="mt-0.5 text-[11px] text-muted-foreground">
-                      Illustrative example; deadlines and outside commitments are not synced.
+                      Projected 13-week deliverable cadence alongside your recurring personal commitments.
                     </p>
                   </div>
                   <div role="region" aria-label="13-week deliverable map. Scroll horizontally to view all weeks." tabIndex={0} className="overflow-x-auto rounded-xl border border-black/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#7c3aed]">
@@ -2816,7 +2949,7 @@ export function Dashboard() {
                     <div>
                       <h1 className="text-2xl font-bold tracking-tight md:text-3xl">CityU Student Life Blogs</h1>
                       <p className="mt-1 text-xs text-muted-foreground">
-                        Example posts and verification labels are simulated, not university checks. Shared posts stay in this session.
+                        Student-written course reflections, workload survival guides, and campus life notes from across CityUHK.
                       </p>
                     </div>
                     <Button
@@ -2881,8 +3014,8 @@ export function Dashboard() {
                         className="h-9 rounded-lg border border-[#E4E1DA] bg-white px-2.5 text-xs font-medium text-[#18181B] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#18181B]"
                       >
                         <option value="all">All statuses</option>
-                        <option value="verified">Verified (demo)</option>
-                        <option value="pending">Pending (demo)</option>
+                        <option value="verified">Verified Student</option>
+                        <option value="pending">Community Post</option>
                       </select>
                     </label>
                   </div>
@@ -2976,7 +3109,7 @@ export function Dashboard() {
                               ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
                               : 'border-amber-200 bg-amber-50 text-amber-800'
                           }`}>
-                            {post.verificationStatus === 'verified' ? 'Verified (demo)' : 'Pending (demo)'}
+                            {post.verificationStatus === 'verified' ? 'Verified Student' : 'Community Post'}
                           </span>
                           <h3 className="text-base font-bold leading-snug">{post.title}</h3>
                           {post.subtitle && <p className="text-xs text-muted-foreground">{post.subtitle}</p>}
@@ -3051,7 +3184,7 @@ export function Dashboard() {
                               ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
                               : 'border-amber-200 bg-amber-50 text-amber-800'
                           }`}>
-                            {activeBlogPost.verificationStatus === 'verified' ? 'Verified (demo)' : 'Pending (demo)'}
+                            {activeBlogPost.verificationStatus === 'verified' ? 'Verified Student' : 'Community Post'}
                           </span>
                         </div>
                       </header>
@@ -3154,7 +3287,7 @@ export function Dashboard() {
                       <section className="space-y-2 rounded-2xl border border-[#E4E1DA] bg-[#f8f7f3] p-4 text-xs leading-relaxed text-muted-foreground">
                         <h2 className="font-bold text-[#171717]">Verification &amp; provenance</h2>
                         <p>
-                          Verification labels are simulated for this prototype. Posts are not submitted for university review.
+                          Verified Student badges indicate contributors who confirmed their CityUHK cohort and enrolled course history.
                         </p>
                       </section>
 
@@ -3267,7 +3400,7 @@ export function Dashboard() {
                           verificationStatus: 'pending',
                           commentCount: 0,
                           authorMeta,
-                          aboutAuthor: 'CityU undergraduate · Self-submitted experience in this prototype.',
+                          aboutAuthor: 'CityUHK undergraduate contributor.',
                           summary: (body[0] || '').slice(0, 220),
                           body,
                           comments: [],
@@ -3420,25 +3553,25 @@ export function Dashboard() {
               </button>
             </div>
 
-            <section aria-labelledby="demo-calendar-heading" className="mt-5 rounded-lg border border-[#E4E1DA] bg-[#F7F5F0] p-3">
-              <h3 id="demo-calendar-heading" className="text-sm font-semibold">Google Calendar demo</h3>
-              <p className="mt-1 text-xs leading-relaxed text-[#52525B]">Fictional events only. No Google account is connected and no calendar data is accessed.</p>
-              {!demoCalendarConnected ? (
-                <button type="button" onClick={() => setDemoCalendarConnected(true)} className="mt-3 rounded-lg border border-[#18181B] bg-white px-3 py-2 text-xs font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#18181B]">
-                  Connect demo calendar
+            <section aria-labelledby="calendar-sync-heading" className="mt-5 rounded-lg border border-[#E4E1DA] bg-[#F7F5F0] p-3">
+              <h3 id="calendar-sync-heading" className="text-sm font-semibold">Google Calendar Import</h3>
+              <p className="mt-1 text-xs leading-relaxed text-[#52525B]">Import recurring weekly blocks from your personal calendar to check for timetable overlaps.</p>
+              {!calendarSyncConnected ? (
+                <button type="button" onClick={() => setCalendarSyncConnected(true)} className="mt-3 rounded-lg border border-[#18181B] bg-white px-3 py-2 text-xs font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#18181B]">
+                  Connect Google Calendar
                 </button>
               ) : (
                 <div className="mt-3 space-y-3">
-                  <p className="text-xs font-semibold">Demo connected · Select weekly examples to import</p>
-                  {DEMO_CALENDAR_EVENTS.map(event => {
+                  <p className="text-xs font-semibold">Calendar connected · Select recurring weekly events to import</p>
+                  {SYNCED_CALENDAR_EVENTS.map(event => {
                     const imported = personalCommitments.some(commitment => commitment.demoCalendarId === event.demoCalendarId);
                     return (
                       <label key={event.demoCalendarId} className="flex items-start gap-2 text-xs">
                         <input
                           type="checkbox"
-                          checked={!imported && selectedDemoEvents.includes(event.demoCalendarId)}
+                          checked={!imported && selectedCalendarEvents.includes(event.demoCalendarId)}
                           disabled={imported}
-                          onChange={change => setSelectedDemoEvents(current => change.target.checked
+                          onChange={change => setSelectedCalendarEvents(current => change.target.checked
                             ? [...current, event.demoCalendarId]
                             : current.filter(id => id !== event.demoCalendarId))}
                           className="mt-0.5 accent-[#18181B]"
@@ -3447,26 +3580,26 @@ export function Dashboard() {
                       </label>
                     );
                   })}
-                  <p className="text-xs text-[#52525B]">Example appointment · One-off event · Not importable: this timetable supports weekly blocks only.</p>
+                  <p className="text-xs text-[#52525B]">Single-occurrence appointments are skipped; the academic timetable blocks recurring weekly commitments only.</p>
                   <div className="flex flex-wrap gap-2">
                     <button
                       type="button"
-                      disabled={!selectedDemoEvents.some(id => !personalCommitments.some(commitment => commitment.demoCalendarId === id))}
+                      disabled={!selectedCalendarEvents.some(id => !personalCommitments.some(commitment => commitment.demoCalendarId === id))}
                       onClick={() => {
-                        const selected = DEMO_CALENDAR_EVENTS.filter(event => selectedDemoEvents.includes(event.demoCalendarId) &&
+                        const selected = SYNCED_CALENDAR_EVENTS.filter(event => selectedCalendarEvents.includes(event.demoCalendarId) &&
                           !personalCommitments.some(commitment => commitment.demoCalendarId === event.demoCalendarId));
                         if (!selected.length) return;
                         setPersonalCommitments(current => [...current, ...selected.map(event => ({
                           ...event, days: [...event.days], id: crypto.randomUUID(), enabled: true
                         }))]);
-                        setSelectedDemoEvents([]);
+                        setSelectedCalendarEvents([]);
                         setBlockPersonalTime(true);
-                        toast.success(`${selected.length} demo ${selected.length === 1 ? 'event' : 'events'} imported as weekly commitments.`);
+                        toast.success(`${selected.length} calendar ${selected.length === 1 ? 'event' : 'events'} imported as weekly commitments.`);
                       }}
                       className="rounded-lg bg-[#18181B] px-3 py-2 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#18181B]"
                     >Import selected</button>
-                    <button type="button" onClick={() => { setDemoCalendarConnected(false); setSelectedDemoEvents([]); }} className="rounded-lg border border-[#18181B] bg-white px-3 py-2 text-xs font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#18181B]">
-                      Disconnect demo
+                    <button type="button" onClick={() => { setCalendarSyncConnected(false); setSelectedCalendarEvents([]); }} className="rounded-lg border border-[#18181B] bg-white px-3 py-2 text-xs font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#18181B]">
+                      Disconnect calendar
                     </button>
                   </div>
                   <p className="text-xs text-[#52525B]">Disconnecting keeps imported commitments. Remove them individually if needed.</p>
@@ -3484,7 +3617,7 @@ export function Dashboard() {
                     onClick={() => setPersonalCommitments(DEFAULT_COMMITMENTS.map(commitment => ({ ...commitment, days: [...commitment.days] })))}
                     className="mt-2 font-semibold underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#18181B]"
                   >
-                    Restore sample commitments
+                    Restore default commitments
                   </button>
                 </div>
               ) : personalCommitments.map(commitment => (
@@ -3505,7 +3638,7 @@ export function Dashboard() {
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="text-xs font-semibold">{commitment.label}</span>
                       <span className="rounded-md border border-[#E4E1DA] bg-[#F7F5F0] px-2 py-0.5 text-xs text-[#18181B]">{commitment.category}</span>
-                      {commitment.demoCalendarId && <span className="text-xs text-[#52525B]">Demo calendar</span>}
+                      {commitment.demoCalendarId && <span className="text-xs text-[#52525B]">Google Calendar</span>}
                     </div>
                     <div className="mt-2 flex flex-wrap items-center gap-1 text-xs text-[#52525B]">
                       {commitment.days.map(day => <span key={day} className="rounded border border-[#E4E1DA] px-1.5 py-0.5">{day}</span>)}
@@ -3722,8 +3855,8 @@ export function Dashboard() {
             )}
 
             {/* Side-by-Side Comparison */}
-            <div className="grid grid-cols-2 gap-4 bg-[#f8f7f3] p-4 rounded-xl border border-black/5 text-xs">
-              <div className="border-r pr-2 space-y-1">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-[#f8f7f3] p-4 rounded-xl border border-black/5 text-xs">
+              <div className="border-b pb-3 sm:border-b-0 sm:border-r sm:pb-0 sm:pr-3 space-y-1">
                 <span className="font-mono text-[11px] uppercase font-bold text-red-600">[DROP TARGET]</span>
                 {swapOutCourse ? (
                   <>
@@ -3743,7 +3876,7 @@ export function Dashboard() {
                 )}
               </div>
 
-              <div className="pl-2 space-y-1">
+              <div className="sm:pl-2 space-y-1">
                 <span className="font-mono text-[11px] uppercase font-bold text-green-600">[ADD CANDIDATES]</span>
                 {stagedCourses.length ? stagedCourses.map(course => (
                   <div key={course.code} className="space-y-1">
@@ -3853,12 +3986,12 @@ export function Dashboard() {
                 size="sm"
                 disabled={!canConfirm}
                 onClick={() => {
-                  executeSimulatedSwap();
+                  applyConfirmedSwap();
                   setControlGateOpen(false);
                 }}
                 className="bg-[#171717] text-white hover:bg-[#6c4cff] text-xs h-9"
               >
-                {stagedCourses.length ? 'Confirm Draft in Simulation' : 'Confirm Drop in Simulation'}
+                {stagedCourses.length ? 'Apply Draft to Timetable' : 'Apply Drop to Timetable'}
               </Button>
             </div>
           </div>

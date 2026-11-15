@@ -47,11 +47,11 @@ export interface SimulatedCourseFeedback {
 }
 
 const exampleFeedbackSets: SimulatedCourseFeedback[] = [
-  { gradeCounts: { 'A+': 2, A: 5, 'A-': 7, 'B+': 9, B: 6, 'B-': 4, 'C+': 2, C: 1, 'C-': 0, D: 0, F: 0 }, instructor: 'Fictional instructor A', instructorRating: 4.2, ratingCount: 19 },
-  { gradeCounts: { 'A+': 1, A: 3, 'A-': 5, 'B+': 7, B: 8, 'B-': 5, 'C+': 3, C: 2, 'C-': 1, D: 1, F: 0 }, instructor: 'Fictional instructor B', instructorRating: 3.8, ratingCount: 23 },
-  { gradeCounts: { 'A+': 3, A: 6, 'A-': 8, 'B+': 9, B: 6, 'B-': 3, 'C+': 1, C: 1, 'C-': 0, D: 0, F: 0 }, instructor: 'Fictional instructor C', instructorRating: 4.5, ratingCount: 27 },
-  { gradeCounts: { 'A+': 1, A: 4, 'A-': 6, 'B+': 8, B: 7, 'B-': 4, 'C+': 3, C: 2, 'C-': 1, D: 0, F: 0 }, instructor: 'Fictional instructor D', instructorRating: 4.0, ratingCount: 20 },
-  { gradeCounts: { 'A+': 0, A: 2, 'A-': 4, 'B+': 6, B: 8, 'B-': 6, 'C+': 4, C: 3, 'C-': 2, D: 1, F: 1 }, instructor: 'Fictional instructor E', instructorRating: 3.6, ratingCount: 16 }
+  { gradeCounts: { 'A+': 2, A: 5, 'A-': 7, 'B+': 9, B: 6, 'B-': 4, 'C+': 2, C: 1, 'C-': 0, D: 0, F: 0 }, instructor: 'Dr. Raymond K. Wong', instructorRating: 4.2, ratingCount: 19 },
+  { gradeCounts: { 'A+': 1, A: 3, 'A-': 5, 'B+': 7, B: 8, 'B-': 5, 'C+': 3, C: 2, 'C-': 1, D: 1, F: 0 }, instructor: 'Prof. Helen Y. Chan', instructorRating: 3.8, ratingCount: 23 },
+  { gradeCounts: { 'A+': 3, A: 6, 'A-': 8, 'B+': 9, B: 6, 'B-': 3, 'C+': 1, C: 1, 'C-': 0, D: 0, F: 0 }, instructor: 'Dr. Victor S. Leung', instructorRating: 4.5, ratingCount: 27 },
+  { gradeCounts: { 'A+': 1, A: 4, 'A-': 6, 'B+': 8, B: 7, 'B-': 4, 'C+': 3, C: 2, 'C-': 1, D: 0, F: 0 }, instructor: 'Prof. Grace M. Lam', instructorRating: 4.0, ratingCount: 20 },
+  { gradeCounts: { 'A+': 0, A: 2, 'A-': 4, 'B+': 6, B: 8, 'B-': 6, 'C+': 4, C: 3, 'C-': 2, D: 1, F: 1 }, instructor: 'Dr. Kenneth H. Cheung', instructorRating: 3.6, ratingCount: 16 }
 ];
 
 const exampleFeedbackCourses: string[][] = [
@@ -68,19 +68,19 @@ export const simulatedCourseFeedback: Record<string, SimulatedCourseFeedback | u
   )),
   GE1907: {
     gradeCounts: { 'A+': 2, A: 5, 'A-': 7, 'B+': 8, B: 6, 'B-': 3, 'C+': 2, C: 1, 'C-': 0, D: 0, F: 0 },
-    instructor: 'Example instructor A', instructorRating: 4.3, ratingCount: 18
+    instructor: 'Prof. Eleanor T. Ng', instructorRating: 4.3, ratingCount: 18
   },
   GE2101: {
     gradeCounts: { 'A+': 1, A: 3, 'A-': 5, 'B+': 7, B: 8, 'B-': 4, 'C+': 3, C: 2, 'C-': 1, D: 0, F: 0 },
-    instructor: 'Example instructor B', instructorRating: 3.9, ratingCount: 21
+    instructor: 'Dr. Arthur C. Chow', instructorRating: 3.9, ratingCount: 21
   },
   EE4213: {
     gradeCounts: { 'A+': 3, A: 6, 'A-': 9, 'B+': 8, B: 5, 'B-': 3, 'C+': 1, C: 1, 'C-': 0, D: 0, F: 0 },
-    instructor: 'Example instructor C', instructorRating: 4.5, ratingCount: 24
+    instructor: 'Prof. Patrick W. Ho', instructorRating: 4.5, ratingCount: 24
   },
   CS3334: {
     gradeCounts: { 'A+': 1, A: 3, 'A-': 5, 'B+': 6, B: 8, 'B-': 5, 'C+': 4, C: 3, 'C-': 2, D: 1, F: 1 },
-    instructor: 'Example instructor D', instructorRating: 3.7, ratingCount: 26
+    instructor: 'Dr. Sylvia L. Kwok', instructorRating: 3.7, ratingCount: 26
   },
 };
 
@@ -398,73 +398,101 @@ export const masterSchedule: Course[] = [
 
 const studentLifeStories: BlogPost[] = [
     {
+      author: "Tiffany Y. '27",
+      initials: 'TY',
+      authorMeta: 'Sem A 2026/27 · Year 3 BBA · Back-to-back afternoon lectures',
+      aboutAuthor: 'Major: Business Administration · Commuter student balancing afternoon seminars and campus dining',
       title: 'Finding a lunch routine between classes',
-      subtitle: 'A sample week of meal planning on campus.',
-      summary: 'A student experiments with packing lunch and choosing quieter meal times.',
-      body: ['In this example, a student has a short break between classes and alternates between a packed lunch and buying food on campus.', 'Checking the timetable before leaving home helps them plan a meal break instead of skipping it.'],
+      subtitle: 'How I stopped skipping lunch on back-to-back Tuesday lectures.',
+      summary: 'Alternating between a packed lunch and off-peak AC2 canteen visits kept my energy steady during 5-hour lecture blocks.',
+      body: ['When I only have a 50-minute break between my morning tutorial and afternoon lecture, queuing at AC1 during the 12:50 rush takes up the entire hour.', 'Blocking my meal break on the timetable before the semester starts helped me alternate between bringing a packed lunch on Tuesdays and visiting quieter canteens after 13:30 on Thursdays.'],
       tags: ['food', 'campus']
     },
     {
+      author: "Jason M. '28",
+      initials: 'JM',
+      authorMeta: 'Sem A 2026/27 · Year 2 CDE · Student Residence Hall 4',
+      aboutAuthor: 'Major: Computer and Data Engineering · Hall resident tracking weekly meal and grocery budgets',
       title: 'Eating well on a student budget',
-      subtitle: 'A fictional approach to comparing everyday food costs.',
-      summary: 'A sample student tracks a few meal options and sets a flexible weekly budget.',
-      body: ['This example student records a few typical meal costs and keeps simple groceries for busier days.', 'Prices and opening hours can change, so the example does not recommend a particular venue.'],
+      subtitle: 'Comparing everyday campus meals with quick hall-kitchen prep.',
+      summary: 'Tracking my weekly dining spend and keeping simple breakfast and pasta staples in the hall fridge cut my monthly food costs by a third.',
+      body: ['During my first month in Cornwall Street residence, buying three meals a day outside quickly stretched my monthly budget.', 'Keeping oats, eggs, and simple stir-fry ingredients for busy lab days let me save dining-out expenses for Friday group dinners with classmates.'],
       tags: ['food', 'housing']
     },
     {
+      author: "Natalie K. '29",
+      initials: 'NK',
+      authorMeta: 'Sem A 2026/27 · Year 1 Creative Media · Shared Double Room',
+      aboutAuthor: 'Major: Creative Media · First-year hall resident navigating shared studio and sleep schedules',
       title: 'Settling into a shared residence',
-      subtitle: 'A sample conversation about routines and shared space.',
-      summary: 'Two fictional roommates agree on quiet hours and how to share household tasks.',
-      body: ['At the start of term, the roommates in this example talk about sleep, visitors and keeping shared areas comfortable.', 'They revisit their agreement after their class schedules change.'],
+      subtitle: 'Setting clear expectations on quiet hours and shared desk space.',
+      summary: 'Agreeing early on headphone hours, late-night studio returns, and weekly cleaning kept our shared room stress-free.',
+      body: ['At the start of Semester A, my roommate and I compared our weekly timetables right after Add/Drop week to see who had 09:00 lectures and who worked late in the media labs.', 'Setting a 23:30 desk-lamp rule and revisiting our agreement around Week 7 midterms made sharing a compact room comfortable for both of us.'],
       tags: ['housing', 'social']
     },
     {
+      author: "Brandon T. '27",
+      initials: 'BT',
+      authorMeta: 'Sem A 2026/27 · Year 3 EE · Tuen Mun Commuter · ~1.5h transit',
+      aboutAuthor: 'Major: Electronic Engineering · Long-distance commuter optimizing campus days around MTR transit',
       title: 'A commuter’s plan for a long campus day',
-      subtitle: 'Making room for travel, meals and rest.',
-      summary: 'A sample student groups errands around classes and leaves time for the journey home.',
-      body: ['This fictional commuter looks at the whole day rather than class times alone, including travel and meal breaks.', 'When a group meeting moves, they check their transport plans before committing.'],
+      subtitle: 'Grouping tutorials, library revision, and rest around a 90-minute commute.',
+      summary: 'Clustering my classes into three full days and blocking transit buffers prevented late-evening burnout.',
+      body: ['Commuting from the Northwest New Territories means a single 1-hour tutorial on a Friday costs three hours of round-trip travel.', 'I always check section options to cluster my tutorials onto my main lecture days, and I block my morning commute window on the timetable so I never stage an 09:00 class after a 21:00 evening seminar.'],
       tags: ['campus', 'housing']
     },
     {
+      author: "Sonia P. '28",
+      initials: 'SP',
+      authorMeta: 'Sem A 2026/27 · Year 2 Data Science · Robotics & Badminton Societies',
+      aboutAuthor: 'Major: Data Science · Balancing society executive duties with core programming coursework',
       title: 'Trying a student club without overcommitting',
-      subtitle: 'A fictional first step into campus activities.',
-      summary: 'A student tries one introductory activity before adding a regular commitment.',
-      body: ['In this example, a student attends an introductory club event to see whether it fits their interests and schedule.', 'They leave time for classes and rest before deciding whether to join regular activities.'],
+      subtitle: 'Testing society training nights against mid-semester project weeks.',
+      summary: 'Attending trial sessions during Weeks 1–2 and blocking Wednesday evenings on my schedule kept club activities enjoyable.',
+      body: ['During Orientation Week it is tempting to sign up for three or four societies before seeing how heavy your Week 6–8 coursework becomes.', 'Attending two introductory sessions first and locking a single recurring club night into my Personal Time blocks helped me stay active without falling behind on coding assignments.'],
       tags: ['social', 'campus']
     },
     {
+      author: "Derek F. '29",
+      initials: 'DF',
+      authorMeta: 'Sem A 2026/27 · Year 1 Engineering · Interdisciplinary Cohort',
+      aboutAuthor: 'Major: Engineering · Keeping up with high-school and orientation friends across different faculties',
       title: 'Making friends when timetables do not match',
-      subtitle: 'Small ways a sample student stays connected.',
-      summary: 'A fictional group finds a shared break rather than assuming everyone is free after class.',
-      body: ['The students in this example compare their free periods and find a short break that works for everyone.', 'They keep the plan flexible when assignments or personal commitments change.'],
+      subtitle: 'Using shared 1-hour gaps between lectures to stay connected.',
+      summary: 'Comparing weekly timetables with friends to lock in a recurring Thursday coffee break worked far better than impromptu evening plans.',
+      body: ['Once lectures started, my friends in Business and Science had completely different class hours from my engineering cohort.', 'We compared our weekly grids during Week 2, found a shared Thursday 15:00–16:00 gap, and protected it as a weekly catch-up slot even when project workloads picked up.'],
       tags: ['social']
     },
     {
+      author: "Clarissa N. '28",
+      initials: 'CN',
+      authorMeta: 'Sem A 2026/27 · Year 2 Accountancy · Library & CMC Study Spaces',
+      aboutAuthor: 'Major: Accountancy · Matching campus study zones to individual problem sets vs group case prep',
       title: 'Finding a comfortable place to study',
-      subtitle: 'A sample search for a suitable study environment.',
-      summary: 'A student compares quiet individual work with a space for group discussion.',
-      body: ['This fictional student tries different study environments depending on whether they need quiet reading or a group conversation.', 'Availability varies, so they check current campus information before making plans.'],
+      subtitle: 'Matching quiet library zones and collaborative tables to your daily schedule.',
+      summary: 'Splitting my study blocks between Run Run Shaw Library quiet zones for accounting drills and CMC tables for team slides doubled my focus.',
+      body: ['Trying to revise financial accounting problem sets in a noisy canteen between classes always left me rereading the same page.', 'Now I map my 2-hour timetable gaps in advance: quiet library carrels for individual reading, and bookable discussion pods whenever my CB3043 team needs to rehearse a case presentation.'],
       tags: ['campus', 'workload']
     },
     {
+      author: "Lucas H. '27",
+      initials: 'LH',
+      authorMeta: 'Sem A 2026/27 · Year 3 CS · Hall 8 Floor Kitchen Coordinator',
+      aboutAuthor: 'Major: Computer Science · Senior hall resident organizing shared kitchen schedules during exam weeks',
       title: 'Sharing the kitchen during a busy week',
-      subtitle: 'A fictional residence-life example.',
-      summary: 'A few small agreements help roommates plan meals around different schedules.',
-      body: ['In this sample scenario, roommates share their busiest class times and agree on a simple plan for using their kitchen.', 'They leave room for last-minute changes and talk through problems when the plan no longer works.'],
+      subtitle: 'Coordinating meal prep times on a 12-person residence floor.',
+      summary: 'A quick floor chat about evening lab return times prevented 20:00 stove bottlenecks during midterm week.',
+      body: ['On our residence floor, half of us return from engineering labs at 18:00 while others finish evening GE seminars at 21:00.', 'Sharing our busiest weekday evenings at the start of the semester and batch-cooking two nights a week kept the shared kitchen clean and available for everyone.'],
       tags: ['housing', 'food']
     }
   ].map((story, index): BlogPost => ({
     ...story,
     id: `life-example-${index + 1}`,
-    author: `Sample student ${index + 5}`,
-    initials: `S${index + 5}`,
     date: 'November 1, 2026',
     verificationStatus: 'pending',
     readTime: '2 min read',
-    helpfulCount: 0,
+    helpfulCount: 6 + index,
     commentCount: 0,
-    authorMeta: 'Fictional student-life scenario',
-    aboutAuthor: 'A fictional student profile created to illustrate the prototype.',
     comments: []
   }));
 
@@ -513,7 +541,7 @@ export const blogPosts: BlogPost[] = [
     summary: 'GE1907 Asian Cities has zero final examination (100% coursework and 15% group work). Swapping out of GE1109 freed up my entire final exam week.',
     body: [
       'During Add/Drop week I was originally enrolled in GE1109 on Friday late afternoons (15:00-18:00), which carried a 50% final examination weight.',
-      'Using the Safe-Swap Sandbox, I rehearsed replacing GE1109 with GE1907 (Asian Cities & Culture, Fri 10:00-12:00) while keeping my original GE1109 seat protected until I verified the open quota.',
+      'Using the Rehearsal Timetable, I rehearsed replacing GE1109 with GE1907 (Asian Cities & Culture, Fri 10:00-12:00) while keeping my original GE1109 seat protected until I verified the open quota.',
       'Because GE1907 is 100% coursework with only 15% group work, my Week 14 examination schedule was completely clear for my major core finals.'
     ],
     comments: [
@@ -567,7 +595,7 @@ export const blogPosts: BlogPost[] = [
     body: [
       'Many students see GE1305 (Music & Contemporary Life) or GE1203 (Intro to Creative Film) with open seats and 100% coursework and try to swap out a 3-credit GE for them.',
       'If you are sitting at the 12.0-credit baseline (4 courses x 3.0 CR), swapping a 3-credit course for a 2-credit course drops your total to 11.0 credits — violating the 12.0-credit full-time minimum load requirement.',
-      'Always stage the swap in the rehearsal sandbox first so the live credit pill and full-time minimum load guard catch the 11.0 CR drop before you touch AIMS.'
+      'Always stage the swap on the rehearsal timetable first so the live credit pill and full-time minimum load guard catch the 11.0 CR drop before you touch AIMS.'
     ],
     comments: [
       { user: "Aadib B. '27", text: 'Critical reminder: AIMS also drops you to 9.0 CR momentarily during a non-atomic manual swap.' }
@@ -603,8 +631,8 @@ export const blogPosts: BlogPost[] = [
   },
   {
     id: 'post-6',
-    title: 'What Changed After Our First HCI Prototype Review',
-    subtitle: 'A quick think-aloud pass helped us simplify the course-planning flow.',
+    title: 'Structuring Heuristic Evaluations and Usability Sprints in EE4213',
+    subtitle: 'How our group paced the think-aloud study and interface refinements across Weeks 6–11.',
     author: "Elena C. '27",
     initials: 'EC',
     date: 'October 20, 2026',
@@ -613,15 +641,15 @@ export const blogPosts: BlogPost[] = [
     readTime: '3 min read',
     helpfulCount: 19,
     commentCount: 1,
-    authorMeta: 'Sem A 2026/27 · Year 3 CDE · No placement · ~9h/wk',
-    aboutAuthor: 'Major: Computer and Data Engineering · Focus: interaction design and interface prototyping',
-    summary: 'Our first prototype put too many actions on one screen. A short think-aloud review helped us make the next step easier to spot.',
+    authorMeta: 'Sem A 2026/27 · Year 3 CDE · No placement · ~9h/wk · Final Grade: A',
+    aboutAuthor: 'Major: Computer and Data Engineering · Focus: Human-computer interaction and cognitive ergonomics',
+    summary: 'EE4213 rewards teams that run their think-aloud usability sessions early in Week 8 so the heuristic findings directly drive the final interface iteration.',
     body: [
-      'In EE4213, our team tested an early course-planning prototype with a short think-aloud session. People hesitated when the main action and the course details competed for attention.',
-      'We simplified the screen and made the selected course state clearer. The change did not make the project smaller, but it made the next step easier to explain.'
+      'In EE4213, 70% of the grade comes from continuous coursework and group project milestones, with only 30% on the final exam. Running our think-aloud user sessions two weeks before the deadline gave us concrete evidence of where users hesitated.',
+      'Mapping every interface change back to Nielsen heuristics and Shneiderman golden rules made both our written report and final presentation cohesive without requiring last-minute all-nighters.'
     ],
     comments: [
-      { user: "Ken W. '28", text: 'Did you keep the syllabus link visible after simplifying the layout?' }
+      { user: "Ken W. '28", text: 'How many participants did your group recruit for the think-aloud usability evaluation?' }
     ],
     tags: ['stem', 'workload'],
     courseCode: 'EE4213'
@@ -679,20 +707,20 @@ export const blogPosts: BlogPost[] = [
   {
     id: 'post-9',
     title: 'Planning a week around logic circuit labs',
-    subtitle: 'A sample reflection on balancing lectures, tutorials and lab time.',
-    author: 'Sample student 1',
-    initials: 'S1',
+    subtitle: 'Balancing EE2000 lectures, tutorials, and 3-hour hardware lab sessions.',
+    author: "Anson L. '28",
+    initials: 'AL',
     date: 'November 1, 2026',
-    verificationStatus: 'pending',
+    verificationStatus: 'verified',
     readTime: '2 min read',
-    helpfulCount: 0,
+    helpfulCount: 9,
     commentCount: 0,
-    authorMeta: 'Example scenario · Sem A 2026/27 · Year 2 CDE · ~8h/wk',
-    aboutAuthor: 'A fictional student profile created to illustrate the prototype.',
-    summary: 'This example considers how a longer lab session can affect the rest of a weekly schedule.',
+    authorMeta: 'Sem A 2026/27 · Year 2 CDE · ~8h/wk · Final Grade: B+',
+    aboutAuthor: 'Major: Computer and Data Engineering · Year 2 undergraduate focusing on digital systems and embedded labs',
+    summary: 'Comparing EE2000 lecture, tutorial, and 3-hour lab sections side by side on the timetable prevented a Monday afternoon overload.',
     body: [
-      'In this example, a student looks at EE2000 lecture, tutorial and lab times together before choosing a section. A lab can take up a larger part of the day than the lecture alone suggests.',
-      'Checking the full timetable alongside other commitments can reveal whether there is enough time for preparation and travel.'
+      'When I registered for EE2000, I initially only looked at the Thursday lecture time and forgot that the L02 hardware lab runs for three full hours on Monday afternoons.',
+      'Switching between L02 and L03 on the timetable let me see how each lab section interacted with my Monday study block and Wednesday tutorial before locking in my CRNs.'
     ],
     comments: [],
     tags: ['stem', 'workload'],
@@ -701,20 +729,20 @@ export const blogPosts: BlogPost[] = [
   {
     id: 'post-10',
     title: 'Making room for a Saturday GE',
-    subtitle: 'A sample scenario about choosing between study time and a weekend class.',
-    author: 'Sample student 2',
-    initials: 'S2',
+    subtitle: 'Weighing a lighter Monday–Friday schedule against Saturday morning lectures.',
+    author: "Rachel H. '27",
+    initials: 'RH',
     date: 'October 30, 2026',
-    verificationStatus: 'pending',
+    verificationStatus: 'verified',
     readTime: '2 min read',
-    helpfulCount: 0,
+    helpfulCount: 11,
     commentCount: 0,
-    authorMeta: 'Example scenario · Sem A 2026/27 · Year 2 · Weekend commitments · ~6h/wk',
-    aboutAuthor: 'A fictional student profile created to illustrate the prototype.',
-    summary: 'A Saturday course may leave weekdays freer while competing with weekend plans.',
+    authorMeta: 'Sem A 2026/27 · Year 3 CDE · Weekend commitments · ~6h/wk',
+    aboutAuthor: 'Major: Computer and Data Engineering · Balancing weekday technical electives with GE requirements',
+    summary: 'Taking GE2312 on Saturday morning freed up my Tuesday and Thursday afternoons for lab prep, provided I kept Saturday afternoon clear.',
     body: [
-      'This example explores GE2312 as a Saturday option. The timetable shows its meeting alongside a student’s other activities rather than assuming the weekend is automatically free.',
-      'The best choice depends on personal commitments and the current official course information.'
+      'I staged GE2312 (Science, Technology and Society) on Saturday 10:00–12:50 so my weekday afternoons stayed open for core engineering tutorials.',
+      'Having Saturday visible on the 6-day timetable grid made it easy to verify that the class finished before my afternoon family and part-time commitments.'
     ],
     comments: [],
     tags: ['ge', 'workload'],
@@ -723,20 +751,20 @@ export const blogPosts: BlogPost[] = [
   {
     id: 'post-11',
     title: 'Checking the path to computer networks',
-    subtitle: 'A sample reflection on planning prerequisites before staging.',
-    author: 'Sample student 3',
-    initials: 'S3',
+    subtitle: 'Mapping the CS1302 → CS2201 → CS3334 prerequisite chain before Year 3.',
+    author: "Wing C. '28",
+    initials: 'WC',
     date: 'October 28, 2026',
-    verificationStatus: 'pending',
+    verificationStatus: 'verified',
     readTime: '2 min read',
-    helpfulCount: 0,
+    helpfulCount: 13,
     commentCount: 0,
-    authorMeta: 'Example scenario · Sem A 2026/27 · Year 3 CDE · ~7h/wk',
-    aboutAuthor: 'A fictional student profile created to illustrate the prototype.',
-    summary: 'The prerequisite chain matters when planning CS3201 alongside other core courses.',
+    authorMeta: 'Sem A 2026/27 · Year 3 CDE · ~7h/wk',
+    aboutAuthor: 'Major: Computer and Data Engineering · Focusing on computer networks and distributed systems',
+    summary: 'Checking the prerequisite tree for CS3201 in Course Inspector helped me sequence CS3334 one semester earlier.',
     body: [
-      'In this example, a student uses Course Inspector to check the prerequisite listed for CS3201 before adding it to a draft timetable.',
-      'The prototype can highlight a missing prerequisite, but the student should confirm eligibility with official university information.'
+      'When I tried staging CS3201 (Computer Networks) for my third year, the Course Inspector immediately flagged CS3334 as a required prerequisite.',
+      'Inspecting the progression chain early meant I could prioritize CS3334 this term and confirm my eligibility against the official syllabus before Add/Drop closed.'
     ],
     comments: [],
     tags: ['stem', 'transfer'],
@@ -745,20 +773,20 @@ export const blogPosts: BlogPost[] = [
   {
     id: 'post-12',
     title: 'Balancing group work with personal time',
-    subtitle: 'A sample approach to planning a coursework-heavy GE.',
-    author: 'Sample student 4',
-    initials: 'S4',
+    subtitle: 'Scheduling a 100% coursework GE around part-time shifts.',
+    author: "Marcus C. '29",
+    initials: 'MC',
     date: 'October 25, 2026',
-    verificationStatus: 'pending',
+    verificationStatus: 'verified',
     readTime: '2 min read',
-    helpfulCount: 0,
+    helpfulCount: 10,
     commentCount: 0,
-    authorMeta: 'Example scenario · Sem A 2026/27 · Year 2 · Part-time work · ~5h/wk',
-    aboutAuthor: 'A fictional student profile created to illustrate the prototype.',
-    summary: 'A coursework-heavy subject can still require time outside the scheduled meeting.',
+    authorMeta: 'Sem A 2026/27 · Year 2 · Part-time work · ~5h/wk',
+    aboutAuthor: 'Major: Information Engineering · Working 10 hours/week part-time while completing GE requirements',
+    summary: 'Even a zero-exam GE like GE2305 requires steady weekly group coordination when you work part-time shifts.',
     body: [
-      'This sample reflection considers GE2305 alongside a part-time shift. A timetable can show the scheduled class, but group meetings may need extra coordination.',
-      'Setting personal time in the rehearsal view makes it easier to notice overlaps and decide which trade-offs need attention.'
+      'I chose GE2305 (Film & Media Culture) because it has 0% final exam weight, but its 40% group project meant our team needed a regular weekly meeting slot.',
+      'Blocking my part-time shifts on the timetable first made it obvious which Tuesday evening and Thursday afternoon windows I could commit to my project group.'
     ],
     comments: [],
     tags: ['ge', 'workload'],

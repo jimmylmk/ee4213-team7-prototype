@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import {
   blogPosts,
   getResolvedMeetings,
@@ -27,7 +28,7 @@ test('Student-life examples belong to the blog feed, not the course catalogue', 
   }
   const examples = blogPosts.filter(post => post.id.startsWith('life-example-'));
   assert.equal(examples.length, 8);
-  assert.ok(examples.every(post => !post.courseCode && post.authorMeta.includes('Fictional')));
+  assert.ok(examples.every(post => !post.courseCode && post.authorMeta.length > 0 && !/^(S\d+|Sample)/i.test(post.author)));
   assert.ok(masterSchedule.every(item => typeof item.code === 'string'));
 });
 
@@ -38,7 +39,7 @@ test('Example grade data covers common courses while retaining a no-data case', 
     assert.deepEqual(Object.keys(feedback.gradeCounts).sort(), Object.keys(SIMULATED_GRADE_POINTS).sort());
     assert.ok(Object.values(feedback.gradeCounts).every(count => Number.isInteger(count) && count >= 0));
     assert.ok(Object.values(feedback.gradeCounts).some(count => count > 0));
-    assert.match(feedback.instructor, /Fictional|Example/);
+    assert.match(feedback.instructor, /^(Dr\.|Prof\.) /);
   }
   assert.equal(simulatedCourseFeedback.GE1313, undefined);
 });
@@ -77,4 +78,68 @@ test('Added GE courses have syllabus files and explicitly unknown schedules', ()
   assert.ok(course('GE1401').syllabusPdf);
   assert.ok(course('GE1105').syllabusPdf);
   assert.ok(validateCourse(course('GE1401'), []).reasons.some(reason => reason.includes('Prerequisite eligibility not verified')));
+});
+
+test('Multi-lane timetable cards prevent course code collapse and header text collision', () => {
+  const dashboardSrc = fs.readFileSync(
+    new URL('../Design System SaaS Landing Page/src/app/components/Dashboard.tsx', import.meta.url),
+    'utf8'
+  );
+  // Course code must be shrink-0 so it never collapses to 0px when ev.laneCount > 1
+  assert.doesNotMatch(
+    dashboardSrc,
+    /<span className="truncate text-\[11px\] font-bold">\{ev\.course\.code\}<\/span>/,
+    'ev.course.code must not use bare truncate without shrink protection against sibling badges'
+  );
+  assert.match(
+    dashboardSrc,
+    /isMultiLane/,
+    'Timetable card layout must adapt when ev.laneCount > 1 (isMultiLane)'
+  );
+});
+
+test('Production copy guard: zero residual prototype, simulation, demo, fictional, or sample-student wording in app files and runtime data', () => {
+  const filesToCheck = [
+    '../Design System SaaS Landing Page/index.html',
+    '../Design System SaaS Landing Page/src/app/components/Header.tsx',
+    '../Design System SaaS Landing Page/src/app/components/HeroSection.tsx',
+    '../Design System SaaS Landing Page/src/app/components/FeaturesSection.tsx',
+    '../Design System SaaS Landing Page/src/app/components/PricingSection.tsx',
+    '../Design System SaaS Landing Page/src/app/components/TestimonialsSection.tsx',
+    '../Design System SaaS Landing Page/src/app/components/Footer.tsx',
+    '../Design System SaaS Landing Page/src/app/components/SyllabusDrawer.tsx',
+    '../Design System SaaS Landing Page/src/app/components/Dashboard.tsx',
+    '../Design System SaaS Landing Page/src/app/data/courseData.ts'
+  ];
+
+  const bannedPattern = /\b(prototype|simulated|simulation|simulator|fictional|sandbox)\b|sample (student|schedule|commitments|reflection|scenario|syllabus|approach|conversation|search|week)|Verified \(demo\)|Pending \(demo\)|Google Calendar demo|Connect demo|Disconnect demo|Demo calendar|demo event/i;
+
+  for (const relPath of filesToCheck) {
+    const raw = fs.readFileSync(new URL(relPath, import.meta.url), 'utf8');
+    // Strip preserved TypeScript export identifiers before checking user-facing copy
+    const cleaned = raw.replace(
+      /\b(simulatedGEAreas|simulatedCourseFeedback|SIMULATED_GRADE_POINTS|SimulatedGrade|SimulatedCourseFeedback)\b/g,
+      '__EXPORT_ID__'
+    );
+    const match = cleaned.match(bannedPattern);
+    assert.equal(match, null, `Unexpected prototype/demo wording "${match?.[0]}" found in ${relPath}`);
+  }
+
+  for (const post of blogPosts) {
+    assert.doesNotMatch(post.author, /^(Sample|S\d+$)/i, `Blog post ${post.id} has placeholder author ${post.author}`);
+    assert.doesNotMatch(post.initials, /^S\d+$/i, `Blog post ${post.id} has placeholder initials ${post.initials}`);
+    const combinedText = [post.title, post.subtitle, post.summary, post.authorMeta, post.aboutAuthor, ...post.body].join(' ');
+    assert.doesNotMatch(combinedText, bannedPattern, `Blog post ${post.id} contains banned prototype/sample wording`);
+  }
+});
+
+test('Mobile & Desktop responsive guards: Mobile Day/Week timetable switcher, z-30 sticky time column, and responsive Control Gate', () => {
+  const dashboardSrc = fs.readFileSync(
+    new URL('../Design System SaaS Landing Page/src/app/components/Dashboard.tsx', import.meta.url),
+    'utf8'
+  );
+  assert.match(dashboardSrc, /mobileTimetableMode/, 'Dashboard must include mobileTimetableMode state for Day/Week view switching');
+  assert.match(dashboardSrc, /selectedMobileDay/, 'Dashboard must include selectedMobileDay state for mobile single-day view');
+  assert.match(dashboardSrc, /sticky left-0 z-30/, 'Timetable TIME axis must be sticky left-0 z-30 during horizontal scroll');
+  assert.match(dashboardSrc, /grid-cols-1 sm:grid-cols-2/, 'Control Gate comparison grid must stack on mobile (grid-cols-1 sm:grid-cols-2)');
 });

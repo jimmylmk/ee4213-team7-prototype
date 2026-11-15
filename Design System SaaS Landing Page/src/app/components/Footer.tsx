@@ -18,12 +18,12 @@ export function Footer() {
               <BrandMark />
               <div>
                 <div className="font-semibold text-sm">CityU <span className="text-violet-600">CampuSync</span></div>
-                <div className="font-mono text-[10px] text-muted-foreground uppercase">CityU EE4213 Team #7</div>
+                <div className="font-mono text-[10px] text-muted-foreground uppercase">CityUHK Academic Planning Platform</div>
               </div>
             </div>
             <p className="text-xs text-muted-foreground max-w-md leading-relaxed">
-              Unified Course Planning & Safe-Swap Rehearsal Sandbox developed for CityU EE4213 Human-Computer Interaction.
-              100% offline single-session simulation ensuring zero AIMS registration risk.
+              Unified course planning, conflict radar, and safe add/drop timetable rehearsal built for CityUHK undergraduates.
+              Protects your enrolled AIMS seats while you plan.
             </p>
           </div>
 
@@ -33,18 +33,18 @@ export function Footer() {
               <li><a href="#overview" onClick={scrollTo("overview")} className="hover:text-foreground transition-colors">Overview</a></li>
               <li><a href="#capabilities" onClick={scrollTo("capabilities")} className="hover:text-foreground transition-colors">Capabilities</a></li>
               <li><a href="#persona" onClick={scrollTo("persona")} className="hover:text-foreground transition-colors">Student Persona</a></li>
-              <li><a href="#walkthrough" onClick={scrollTo("walkthrough")} className="hover:text-foreground transition-colors">Rehearsal Workflow</a></li>
+              <li><a href="#walkthrough" onClick={scrollTo("walkthrough")} className="hover:text-foreground transition-colors">How It Works</a></li>
             </ul>
           </div>
 
           <div>
-            <h4 className="font-mono text-xs uppercase tracking-wider text-[#6c4cff] mb-3">Project Roster</h4>
+            <h4 className="font-mono text-xs uppercase tracking-wider text-[#6c4cff] mb-3">Platform Guarantees</h4>
             <ul className="space-y-1.5 text-xs text-muted-foreground">
-              <li><span className="font-medium text-foreground">Jimmy (Lam Kin)</span> · Prototype Lead</li>
-              <li><span className="font-medium text-foreground">Aadib</span> · Technical Lead</li>
-              <li><span className="font-medium text-foreground">Praneel</span> · Video & Demo Lead</li>
-              <li><span className="font-medium text-foreground">Hudaifa</span> · Usability Study Lead</li>
-              <li><span className="font-medium text-foreground">Louis</span> · Data Analyst</li>
+              <li><span className="font-medium text-foreground">Zero AIMS Write Risk</span> · Safe Rehearsal</li>
+              <li><span className="font-medium text-foreground">12.0-CR Full-Time Guard</span> · Load Protection</li>
+              <li><span className="font-medium text-foreground">Official Syllabus Archive</span> · Course Inspector</li>
+              <li><span className="font-medium text-foreground">Verified Student Reviews</span> · Community Blogs</li>
+              <li><span className="font-medium text-foreground">Control Gate Handoff</span> · CRN Checklist</li>
             </ul>
           </div>
         </div>
@@ -52,13 +52,13 @@ export function Footer() {
         <Separator className="my-6 bg-black/10" />
 
         <div className="flex flex-col sm:flex-row justify-between items-center text-xs text-muted-foreground gap-2">
-          <p>© 2026 CityU EE4213 Team 7. All rights reserved. Academic simulation prototype.</p>
-          <div className="flex space-x-4 font-mono text-[11px]">
+          <p>© 2026 CityU CampuSync. All rights reserved. Built for CityUHK undergraduates.</p>
+          <div className="flex flex-wrap justify-center gap-x-4 gap-y-1 font-mono text-[11px]">
             <span>AY2026/27 Sem A</span>
             <span>·</span>
-            <span>Zero Auth Mode</span>
+            <span>Instant Access</span>
             <span>·</span>
-            <span>100% Offline Simulation</span>
+            <span>AIMS Companion Mode</span>
           </div>
         </div>
       </div>

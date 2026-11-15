@@ -16,13 +16,16 @@ export function HeroSection() {
     const motionPreference = window.matchMedia('(prefers-reduced-motion: reduce)');
     
     const animateCards = () => {
+      const isMobileViewport = window.innerWidth < 640;
+      const xAmp = isMobileViewport ? 6 : 20;
+      const yAmp = isMobileViewport ? 4 : 15;
       cards.forEach((card, index) => {
         const element = card as HTMLElement;
         const time = Date.now() * 0.001;
         const offset = index * 0.7;
         
-        const x = Math.sin(time + offset) * 20;
-        const y = Math.cos(time + offset * 1.2) * 15;
+        const x = Math.sin(time + offset) * xAmp;
+        const y = Math.cos(time + offset * 1.2) * yAmp;
         const rotateX = Math.sin(time + offset) * 6;
         const rotateY = Math.cos(time + offset * 0.8) * 10;
         
@@ -57,22 +60,21 @@ export function HeroSection() {
     <section id="overview" className="relative py-20 lg:py-28 overflow-hidden bg-[#f8f7f3]">
       <div className="container mx-auto px-4 text-center">
         <Badge variant="secondary" className="mb-6 font-mono text-xs px-3 py-1 bg-[#ece9ff] text-[#34266f] border border-[#d9ccff]">
-          AY2026/27 Semester A Course Add/Drop Rehearsal
+          CityUHK Add/Drop Schedule Planner &amp; Course Explorer
         </Badge>
-        <h1 className="mx-auto max-w-4xl text-4xl md:text-6xl lg:text-7xl tracking-tight mb-6 font-semibold">
-          Rehearse course swaps with{" "}
+        <h1 className="mx-auto max-w-4xl text-4xl sm:text-5xl md:text-6xl lg:text-7xl tracking-tight mb-6 font-semibold leading-[1.08]">
+          Test your course swaps{" "}
           <span className="bg-gradient-to-r from-[#171717] to-[#6c4cff] bg-clip-text text-transparent">
-            zero AIMS risk
+            before touching AIMS
           </span>
         </h1>
-        <p className="mx-auto max-w-2xl text-base md:text-lg text-muted-foreground mb-8">
-          CityU EE4213 Team #7: Unified Course Planning & Safe-Swap Rehearsal Sandbox.
-          Direct manipulation schedule canvas, real-time conflict radar, 12.0-credit full-time minimum load protection, and human-in-the-loop control gates.
+        <p className="mx-auto max-w-2xl text-base md:text-lg text-muted-foreground mb-8 leading-relaxed">
+          Preview add/drop changes on a live weekly timetable without risking your enrolled seats. Check time clashes, protect your 12-credit full-time load, block off personal commitments, and compare course syllabi and student reviews in one place.
         </p>
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16">
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-3.5 mb-16">
           <Button size="lg" className="w-full sm:w-auto bg-[#171717] text-white hover:bg-[#6c4cff] transition-all px-8" asChild>
             <Link to="/dashboard">
-              Launch Rehearsal Sandbox
+              Open App
               <ArrowRight className="ml-2 h-4 w-4" />
             </Link>
           </Button>
@@ -81,14 +83,19 @@ export function HeroSection() {
               Explore Course Inspector
             </Link>
           </Button>
+          <Button variant="ghost" size="lg" className="w-full sm:w-auto text-xs font-mono text-muted-foreground hover:text-foreground" asChild>
+            <Link to="/dashboard?view=blogs">
+              Read CityU Blogs &rarr;
+            </Link>
+          </Button>
         </div>
 
         {/* 3D Floating Schedule Cards Scene */}
-        <div className="relative max-w-4xl mx-auto h-80 md:h-96">
+        <div className="relative max-w-4xl mx-auto h-auto sm:h-80 md:h-96">
           <div ref={sceneRef} className="relative w-full h-full [perspective:1000px]">
             {/* Center Main Stage Card */}
-            <div className="floating-card absolute top-12 left-1/2 -translate-x-1/2 w-80 md:w-96 bg-white border border-black/10 rounded-2xl shadow-xl p-5 text-left transform-gpu z-20">
-              <div className="flex items-center justify-between mb-2">
+            <div className="floating-card relative mx-auto w-full max-w-sm sm:absolute sm:top-12 sm:left-1/2 sm:-translate-x-1/2 sm:w-80 md:w-96 bg-white border border-black/10 rounded-2xl shadow-xl p-5 text-left transform-gpu z-20">
+              <div className="flex flex-wrap items-center justify-between gap-1 mb-2">
                 <span className="font-mono text-xs font-bold text-[#6c4cff]">EE2000</span>
                 <span className="font-mono text-[10px] bg-[#d9ff63] text-[#171717] px-2 py-0.5 font-bold uppercase rounded">
                   [12.0 Credits Enrolled · Protected]
@@ -99,6 +106,29 @@ export function HeroSection() {
               <div className="flex items-center justify-between border-t pt-2 text-[11px] text-muted-foreground">
                 <span>CRN 51001</span>
                 <span className="text-green-600 font-medium">No schedule clash</span>
+              </div>
+            </div>
+
+            {/* Mobile 2-Card Summary Grid (< 640px) */}
+            <div className="grid grid-cols-1 min-[400px]:grid-cols-2 gap-3 mt-4 text-left sm:hidden">
+              <div className="bg-white border-2 border-dashed border-[#6c4cff] rounded-xl shadow-sm p-3.5">
+                <div className="flex items-center justify-between gap-1 mb-1">
+                  <span className="font-mono text-xs font-bold text-[#171717]">GE1907</span>
+                  <span className="font-mono text-[9px] bg-[#ece9ff] text-[#34266f] px-1.5 py-0.5 rounded font-semibold">
+                    [Staged Preview]
+                  </span>
+                </div>
+                <h4 className="font-medium text-xs truncate">Asian Cities &amp; Culture</h4>
+                <p className="text-[11px] text-muted-foreground mt-0.5">Fri 10:00–12:00 · 11 Seats Open</p>
+              </div>
+              <div className="bg-white border border-black/10 rounded-xl shadow-sm p-3.5 flex flex-col justify-between">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <ShieldCheck className="h-4 w-4 shrink-0 text-green-600" />
+                  <span className="font-semibold text-xs leading-tight">Full-Time Load Protected</span>
+                </div>
+                <div className="text-[11px] text-muted-foreground">
+                  Total: <span className="font-bold text-foreground">12.0 CR</span> (Min 12.0 CR)
+                </div>
               </div>
             </div>
 

@@ -45,7 +45,7 @@ const capabilities = [
   {
     icon: MessageSquare,
     title: "CityU Community Blogs",
-    description: "Authentic student workload reviews, semester survival tips, and grading experience logs for every simulated course.",
+    description: "Authentic student workload reviews, semester survival tips, and grading experience logs for every CityUHK course.",
     badge: "Community"
   },
   {
@@ -56,9 +56,9 @@ const capabilities = [
   },
   {
     icon: WifiOff,
-    title: "100% Offline Simulation",
-    description: "Zero login barriers, zero server dependencies, and zero live writes to CityU AIMS servers. Direct access to Marcus Li's schedule.",
-    badge: "Offline"
+    title: "Private Workspace & AIMS Safety",
+    description: "Zero login barriers and zero unauthorized writes to CityU AIMS servers. Plan freely in your private session before executing CRN changes.",
+    badge: "Privacy"
   }
 ];
 

@@ -47,7 +47,7 @@ export function Header() {
               Student Persona
             </a>
             <a href="#walkthrough" onClick={scrollTo("walkthrough")} className="text-muted-foreground hover:text-foreground transition-colors">
-              Walkthrough
+              How It Works
             </a>
           </nav>
         </div>
@@ -55,10 +55,9 @@ export function Header() {
           <Button variant="ghost" className="hidden lg:inline-flex text-xs font-mono" asChild>
             <Link to="/dashboard?view=inspector">Course Inspector</Link>
           </Button>
-          <Button asChild className="bg-[#171717] text-white hover:bg-[#6c4cff] transition-colors max-[420px]:px-2">
-            <Link to="/dashboard" aria-label="Launch Sandbox">
-              <span className="max-[420px]:hidden">Launch Sandbox &rarr;</span>
-              <span className="hidden max-[420px]:inline">Launch</span>
+          <Button asChild className="bg-[#171717] text-white hover:bg-[#6c4cff] transition-colors max-[420px]:px-2.5">
+            <Link to="/dashboard" aria-label="Open App">
+              <span>Open App &rarr;</span>
             </Link>
           </Button>
           <Button
@@ -102,7 +101,7 @@ export function Header() {
               onClick={scrollTo("walkthrough")}
               className="px-2 py-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-black/5 transition-colors"
             >
-              Walkthrough
+              How It Works
             </a>
           </nav>
           <div className="pt-2 border-t flex flex-col space-y-2">
