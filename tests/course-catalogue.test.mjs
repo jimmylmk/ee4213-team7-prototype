@@ -142,4 +142,6 @@ test('Mobile & Desktop responsive guards: Mobile Day/Week timetable switcher, z-
   assert.match(dashboardSrc, /selectedMobileDay/, 'Dashboard must include selectedMobileDay state for mobile single-day view');
   assert.match(dashboardSrc, /sticky left-0 z-30/, 'Timetable TIME axis must be sticky left-0 z-30 during horizontal scroll');
   assert.match(dashboardSrc, /grid-cols-1 sm:grid-cols-2/, 'Control Gate comparison grid must stack on mobile (grid-cols-1 sm:grid-cols-2)');
+  assert.match(dashboardSrc, /flex-nowrap/, 'Dashboard header must be flex-nowrap on mobile to prevent top bar row breaking');
+  assert.doesNotMatch(dashboardSrc, /order-last grid w-full grid-cols-3/, 'Dashboard nav must not use order-last w-full on mobile');
 });

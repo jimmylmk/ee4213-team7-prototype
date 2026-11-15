@@ -1059,8 +1059,8 @@ export function Dashboard() {
       <Toaster position="bottom-right" />
       {/* Top Application Bar */}
       <header className="sticky top-0 z-30 border-b border-black/10 bg-white/95 backdrop-blur">
-        <div className="mx-auto flex max-w-[1600px] flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2.5 md:px-8 lg:grid lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
-          <div className="flex shrink-0 items-center gap-2.5 pr-2">
+        <div className="mx-auto flex max-w-[1600px] flex-nowrap items-center justify-between gap-1.5 px-3 py-2 sm:gap-4 sm:px-6 sm:py-2.5 md:px-8 lg:grid lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
+          <div className="flex shrink-0 items-center gap-1.5 sm:gap-2.5">
             {(navHistory.length > 0 || openPostId !== null) && (
               <button
                 type="button"
@@ -1075,17 +1075,20 @@ export function Dashboard() {
             <Link
               to="/"
               title="Return to Product Overview (Landing Page)"
-              className="flex items-center gap-2.5 rounded-lg py-1 pr-1.5 transition-opacity hover:opacity-80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#6c4cff]"
+              className="flex items-center gap-1.5 sm:gap-2.5 rounded-lg py-1 pr-1 transition-opacity hover:opacity-80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#6c4cff]"
             >
               <BrandMark />
-              <span className="font-semibold text-sm tracking-tight">CityU <span className="text-violet-600">CampuSync</span></span>
+              <span className="font-semibold text-xs sm:text-sm tracking-tight whitespace-nowrap">
+                <span className="hidden min-[400px]:inline">CityU </span>
+                <span className="text-violet-600">CampuSync</span>
+              </span>
             </Link>
           </div>
 
-          {/* Segmented view switcher */}
+          {/* Segmented view switcher - Single Line on Mobile */}
           <nav
             aria-label="Workspace views"
-            className="relative order-last grid w-full grid-cols-3 gap-1 rounded-xl bg-[#eeece6] p-1 lg:order-none lg:w-auto"
+            className="relative grid grid-cols-3 gap-1 rounded-xl bg-[#eeece6] p-1 shrink-0"
           >
             <span
               aria-hidden="true"
@@ -1100,24 +1103,25 @@ export function Dashboard() {
                 key={id}
                 onClick={() => changeTab(id)}
                 aria-current={activeTab === id ? 'page' : undefined}
-                className={`relative flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap rounded-lg px-2 sm:px-3 py-1.5 text-xs font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#6c4cff] ${
+                title={label}
+                className={`relative flex items-center justify-center gap-1 sm:gap-1.5 md:gap-2 whitespace-nowrap rounded-lg px-2 sm:px-2.5 md:px-3 py-1.5 text-xs font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#6c4cff] ${
                   activeTab === id
                     ? 'text-white'
                     : 'text-[#171717]/70 hover:bg-white hover:text-[#171717]'
                 }`}
               >
                 <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                <span className="hidden min-[480px]:inline">{label}</span>
-                <span className="min-[480px]:hidden">{shortLabel}</span>
+                <span className="hidden lg:inline">{label}</span>
+                <span className="hidden min-[540px]:inline lg:hidden">{shortLabel}</span>
               </button>
             ))}
           </nav>
 
-          <div className="ml-auto flex shrink-0 items-center gap-2">
+          <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-2">
             <Link
               to="/"
               title="Return to Product Overview (Landing Page)"
-              className="flex h-10 items-center justify-center gap-1.5 rounded-xl border border-[#E4E1DA] bg-white px-2.5 text-xs font-semibold text-[#18181B] transition-colors hover:bg-[#f8f7f3] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#18181B]"
+              className="hidden sm:flex h-9 sm:h-10 items-center justify-center gap-1.5 rounded-xl border border-[#E4E1DA] bg-white px-2.5 text-xs font-semibold text-[#18181B] transition-colors hover:bg-[#f8f7f3] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#18181B]"
             >
               <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
               <span className="sr-only sm:not-sr-only">Product Overview</span>
@@ -1133,7 +1137,7 @@ export function Dashboard() {
                 <button
                   type="button"
                   title="How it works"
-                  className="flex h-10 items-center justify-center gap-1.5 rounded-xl border border-[#E4E1DA] bg-white px-2.5 text-xs font-semibold text-[#18181B] transition-colors hover:bg-[#f8f7f3] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#18181B]"
+                  className="flex h-8 w-8 sm:h-10 sm:w-auto items-center justify-center gap-1.5 rounded-lg sm:rounded-xl border border-[#E4E1DA] bg-white px-0 sm:px-2.5 text-xs font-semibold text-[#18181B] transition-colors hover:bg-[#f8f7f3] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#18181B]"
                 >
                   <CircleHelp className="h-4 w-4" aria-hidden="true" />
                   <span className="sr-only sm:not-sr-only">How it works</span>
@@ -1207,27 +1211,27 @@ export function Dashboard() {
                 </div>
               </SheetContent>
             </Sheet>
-          <div ref={profileMenuRef} className="relative shrink-0">
-            <button
-              type="button"
-              onClick={() => setProfileMenuOpen(open => !open)}
-              aria-haspopup="true"
-              aria-expanded={profileMenuOpen}
-              aria-label="Open Marcus Li profile menu"
-              className="flex h-10 items-center gap-2 rounded-xl border border-[#E4E1DA] bg-white px-3 text-xs font-semibold transition-colors hover:bg-[#f8f7f3] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6c4cff]"
-            >
-              <span className="relative grid h-7 w-7 shrink-0 place-items-center overflow-hidden rounded-full bg-[#6c4cff] font-mono text-[11px] font-bold text-white" aria-hidden="true">
-                <span>ML</span>
-                <img
-                  src="./avatars/marcus.svg"
-                  alt=""
-                  onError={event => { event.currentTarget.hidden = true; }}
-                  className="absolute inset-0 h-full w-full object-cover"
-                />
-              </span>
-              <span className="max-[380px]:hidden">Marcus Li</span>
-              <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${profileMenuOpen ? 'rotate-180' : ''}`} aria-hidden="true" />
-            </button>
+            <div ref={profileMenuRef} className="relative shrink-0">
+              <button
+                type="button"
+                onClick={() => setProfileMenuOpen(open => !open)}
+                aria-haspopup="true"
+                aria-expanded={profileMenuOpen}
+                aria-label="Open Marcus Li profile menu"
+                className="flex h-8 sm:h-10 items-center gap-1.5 sm:gap-2 rounded-lg sm:rounded-xl border border-[#E4E1DA] bg-white px-1.5 sm:px-3 text-xs font-semibold transition-colors hover:bg-[#f8f7f3] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6c4cff]"
+              >
+                <span className="relative grid h-6 w-6 sm:h-7 sm:w-7 shrink-0 place-items-center overflow-hidden rounded-full bg-[#6c4cff] font-mono text-[10px] sm:text-[11px] font-bold text-white" aria-hidden="true">
+                  <span>ML</span>
+                  <img
+                    src="./avatars/marcus.svg"
+                    alt=""
+                    onError={event => { event.currentTarget.hidden = true; }}
+                    className="absolute inset-0 h-full w-full object-cover"
+                  />
+                </span>
+                <span className="hidden sm:inline">Marcus Li</span>
+                <ChevronDown className={`hidden sm:inline h-4 w-4 text-muted-foreground transition-transform ${profileMenuOpen ? 'rotate-180' : ''}`} aria-hidden="true" />
+              </button>
 
             {profileMenuOpen && (
               <div className="absolute right-0 top-full z-50 mt-2 w-72 rounded-xl border border-[#E4E1DA] bg-white p-4 shadow-lg">
