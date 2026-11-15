@@ -52,9 +52,6 @@ export function Header() {
           </nav>
         </div>
         <div className="flex items-center space-x-1 sm:space-x-4">
-          <Button variant="ghost" className="hidden lg:inline-flex text-xs font-mono" asChild>
-            <Link to="/dashboard?view=inspector">Course Inspector</Link>
-          </Button>
           <Button asChild className="bg-[#171717] text-white hover:bg-[#6c4cff] transition-colors max-[420px]:px-2.5">
             <Link to="/dashboard" aria-label="Open App">
               <span>Open App &rarr;</span>
@@ -106,13 +103,11 @@ export function Header() {
           </nav>
           <div className="pt-2 border-t flex flex-col space-y-2">
             <Button
-              variant="outline"
-              size="sm"
-              className="w-full justify-start text-xs font-mono"
+              className="w-full justify-center bg-[#171717] text-white hover:bg-[#6c4cff] text-xs font-semibold"
               asChild
               onClick={() => setMobileMenuOpen(false)}
             >
-              <Link to="/dashboard?view=inspector">Course Inspector</Link>
+              <Link to="/dashboard">Open App &rarr;</Link>
             </Button>
           </div>
         </div>

@@ -135,11 +135,11 @@ export function TestimonialsSection() {
 
               <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-black/10 mt-auto">
                 <p className="text-xs text-muted-foreground">
-                  Browse Transfer Advice &amp; Syllabi in Course Inspector
+                  Explore John Jones&apos;s transfer advice and course syllabi?
                 </p>
                 <Button asChild variant="outline" className="w-full sm:w-auto border-black/15 bg-white hover:bg-black/5 hover:text-[#0f766e] transition-colors">
                   <Link to="/dashboard?view=inspector">
-                    Course Inspector
+                    Enter John Jones&apos;s Workspace
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </Link>
                 </Button>
