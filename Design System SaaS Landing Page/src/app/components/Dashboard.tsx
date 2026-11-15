@@ -1086,14 +1086,6 @@ export function Dashboard() {
           </nav>
 
           <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-2">
-            <Link
-              to="/"
-              title="Return to Product Overview (Landing Page)"
-              className="hidden sm:flex h-9 sm:h-10 items-center justify-center gap-1.5 rounded-xl border border-[#E4E1DA] bg-white px-2.5 text-xs font-semibold text-[#18181B] transition-colors hover:bg-[#f8f7f3] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#18181B]"
-            >
-              <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
-              <span className="sr-only sm:not-sr-only">Product Overview</span>
-            </Link>
             <Sheet open={helpOpen} onOpenChange={open => {
               setHelpOpen(open);
               if (open) {
@@ -1203,18 +1195,11 @@ export function Dashboard() {
 
             {profileMenuOpen && (
               <div className="absolute right-0 top-full z-50 mt-2 w-72 rounded-xl border border-[#E4E1DA] bg-white p-4 shadow-lg">
-                <div className="border-b border-[#E4E1DA] pb-3">
+                <div>
                   <p className="text-sm font-bold">Marcus Li '28</p>
                   <p className="mt-1 text-xs text-muted-foreground">BEng Computer &amp; Data Engineering · Year 2</p>
                   <p className="mt-1 text-xs text-muted-foreground">Semester B 2026/27</p>
                 </div>
-
-                <Link
-                  to="/"
-                  className="mt-3 block w-full rounded-lg border-t border-[#E4E1DA] pt-3 text-left text-xs font-medium text-muted-foreground transition-colors hover:text-[#171717]"
-                >
-                  Product Overview (Landing) →
-                </Link>
               </div>
             )}
           </div>
