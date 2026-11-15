@@ -1,6 +1,6 @@
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
-import { ArrowRight, ShieldCheck } from "lucide-react";
+import { ShieldCheck } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { Link } from "react-router";
 
@@ -60,29 +60,28 @@ export function HeroSection() {
     <section id="overview" className="relative py-20 lg:py-28 overflow-hidden bg-[#f8f7f3]">
       <div className="container mx-auto px-4 text-center">
         <Badge variant="secondary" className="mb-6 font-mono text-xs px-3 py-1 bg-[#ece9ff] text-[#34266f] border border-[#d9ccff]">
-          AY2026/27 Semester A Course Add/Drop Rehearsal
+          CityU Course Add/Drop · Offline Rehearsal Sandbox
         </Badge>
         <h1 className="mx-auto max-w-4xl text-4xl sm:text-5xl md:text-6xl lg:text-7xl tracking-tight mb-6 font-semibold leading-[1.08]">
-          Rehearse course swaps{" "}
+          Test Add/Drop swaps safely.{" "}
           <br className="hidden sm:inline" />
-          with{" "}
-          <span className="bg-gradient-to-r from-[#171717] to-[#6c4cff] bg-clip-text text-transparent">
-            zero AIMS risk
+          Choose courses with{" "}
+          <span className="text-[#7C3AED]">
+            real context
           </span>
         </h1>
         <p className="mx-auto max-w-2xl text-base md:text-lg text-muted-foreground mb-8 leading-relaxed">
-          CityU EE4213 Team #7: Unified Course Planning &amp; Safe-Swap Rehearsal Sandbox. Direct manipulation schedule canvas, real-time conflict radar, 12.0-credit full-time minimum load protection, and human-in-the-loop control gates.
+          Preview schedule changes, protect your course credits, inspect official syllabi, and read verified peer reviews—before touching AIMS.
         </p>
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16">
           <Button size="lg" className="w-full sm:w-auto bg-[#171717] text-white hover:bg-[#6c4cff] transition-all px-8" asChild>
             <Link to="/dashboard">
-              Open App
-              <ArrowRight className="ml-2 h-4 w-4" />
+              Open App &rarr;
             </Link>
           </Button>
           <Button variant="outline" size="lg" className="w-full sm:w-auto border-black/15 bg-white hover:bg-black/5" asChild>
-            <Link to="/dashboard?view=inspector">
-              Explore Course Inspector
+            <Link to="/dashboard?view=blogs">
+              Explore CityU Blogs
             </Link>
           </Button>
         </div>
@@ -130,7 +129,7 @@ export function HeroSection() {
             </div>
 
             {/* Left Staged Preview Card */}
-            <div className="floating-card absolute top-28 left-4 md:left-12 w-72 bg-white border-2 border-dashed border-[#6c4cff] rounded-2xl shadow-lg p-4 text-left transform-gpu z-10 hidden sm:block">
+            <div className="floating-card absolute top-28 left-0 sm:-left-1 md:left-7 w-72 bg-white border-2 border-dashed border-[#6c4cff] rounded-2xl shadow-lg p-4 text-left transform-gpu z-10 hidden sm:block">
               <div className="flex items-center justify-between mb-1">
                 <span className="font-mono text-xs font-bold text-[#171717]">GE1907</span>
                 <span className="font-mono text-[9px] bg-[#ece9ff] text-[#34266f] px-1.5 py-0.5 rounded font-semibold">
