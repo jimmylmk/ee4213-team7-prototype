@@ -44,7 +44,7 @@ export function Header() {
               Capabilities
             </a>
             <a href="#persona" onClick={scrollTo("persona")} className="text-muted-foreground hover:text-foreground transition-colors">
-              Student Persona
+              Student Personas
             </a>
             <a href="#walkthrough" onClick={scrollTo("walkthrough")} className="text-muted-foreground hover:text-foreground transition-colors">
               How It Works
@@ -94,7 +94,7 @@ export function Header() {
               onClick={scrollTo("persona")}
               className="px-2 py-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-black/5 transition-colors"
             >
-              Student Persona
+              Student Personas
             </a>
             <a
               href="#walkthrough"

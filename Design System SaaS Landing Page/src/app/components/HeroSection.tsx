@@ -1,6 +1,6 @@
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
-import { ArrowRight, Calendar, ShieldCheck, Layers } from "lucide-react";
+import { ArrowRight, ShieldCheck } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { Link } from "react-router";
 
@@ -60,18 +60,20 @@ export function HeroSection() {
     <section id="overview" className="relative py-20 lg:py-28 overflow-hidden bg-[#f8f7f3]">
       <div className="container mx-auto px-4 text-center">
         <Badge variant="secondary" className="mb-6 font-mono text-xs px-3 py-1 bg-[#ece9ff] text-[#34266f] border border-[#d9ccff]">
-          CityUHK Add/Drop Schedule Planner &amp; Course Explorer
+          AY2026/27 Semester A Course Add/Drop Rehearsal
         </Badge>
         <h1 className="mx-auto max-w-4xl text-4xl sm:text-5xl md:text-6xl lg:text-7xl tracking-tight mb-6 font-semibold leading-[1.08]">
-          Test your course swaps{" "}
+          Rehearse course swaps{" "}
+          <br className="hidden sm:inline" />
+          with{" "}
           <span className="bg-gradient-to-r from-[#171717] to-[#6c4cff] bg-clip-text text-transparent">
-            before touching AIMS
+            zero AIMS risk
           </span>
         </h1>
         <p className="mx-auto max-w-2xl text-base md:text-lg text-muted-foreground mb-8 leading-relaxed">
-          Preview add/drop changes on a live weekly timetable without risking your enrolled seats. Check time clashes, protect your 12-credit full-time load, block off personal commitments, and compare course syllabi and student reviews in one place.
+          CityU EE4213 Team #7: Unified Course Planning &amp; Safe-Swap Rehearsal Sandbox. Direct manipulation schedule canvas, real-time conflict radar, 12.0-credit full-time minimum load protection, and human-in-the-loop control gates.
         </p>
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-3.5 mb-16">
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16">
           <Button size="lg" className="w-full sm:w-auto bg-[#171717] text-white hover:bg-[#6c4cff] transition-all px-8" asChild>
             <Link to="/dashboard">
               Open App
@@ -81,11 +83,6 @@ export function HeroSection() {
           <Button variant="outline" size="lg" className="w-full sm:w-auto border-black/15 bg-white hover:bg-black/5" asChild>
             <Link to="/dashboard?view=inspector">
               Explore Course Inspector
-            </Link>
-          </Button>
-          <Button variant="ghost" size="lg" className="w-full sm:w-auto text-xs font-mono text-muted-foreground hover:text-foreground" asChild>
-            <Link to="/dashboard?view=blogs">
-              Read CityU Blogs &rarr;
             </Link>
           </Button>
         </div>

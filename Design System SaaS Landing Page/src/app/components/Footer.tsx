@@ -32,7 +32,7 @@ export function Footer() {
             <ul className="space-y-2 text-xs text-muted-foreground">
               <li><a href="#overview" onClick={scrollTo("overview")} className="hover:text-foreground transition-colors">Overview</a></li>
               <li><a href="#capabilities" onClick={scrollTo("capabilities")} className="hover:text-foreground transition-colors">Capabilities</a></li>
-              <li><a href="#persona" onClick={scrollTo("persona")} className="hover:text-foreground transition-colors">Student Persona</a></li>
+              <li><a href="#persona" onClick={scrollTo("persona")} className="hover:text-foreground transition-colors">Student Personas</a></li>
               <li><a href="#walkthrough" onClick={scrollTo("walkthrough")} className="hover:text-foreground transition-colors">How It Works</a></li>
             </ul>
           </div>
