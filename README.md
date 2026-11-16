@@ -1,157 +1,157 @@
-# CityU EE4213 Team 7: Unified Course Planning & Safe-Swap Rehearsal Sandbox (Prototype v2)
+# CityU CampuSync: Unified Course Planning and Safe-Swap Rehearsal Sandbox (Prototype v2)
 
-## 1. 專案簡介 (Project Overview)
+City University of Hong Kong (CityU) | EE4213 Human-Computer Interaction | Team 7
 
-本網站是香港城市大學 (CityU) **EE4213 人機互動 (Human-Computer Interaction, HCI)** 課程的 Team #7 核心原型成果：**「統一課程規劃與安全換課預演沙盒 (Unified Course Planning & Safe-Swap Rehearsal Sandbox)」**。
+## 1. Project overview
 
-本系統專為解決 CityU 本科生及非本地留學生在進行選課 (Course Add/Drop) 時面臨的高風險、資訊破碎與介面認知負荷過重等問題而設計。透過直覺的**直接操縱 (Direct Manipulation)** 與**三態課表預演技術 (3-State Safe-Swap Rehearsal)**，讓學生在正式前往官方 AIMS 系統手動操作前，能夠 100% 離線、零風險且完整地模擬排課與換課決策。
+CityU CampuSync is the prototype deliverable for Team 7 in the EE4213 Human-Computer Interaction course at the City University of Hong Kong (CityU).
 
----
-
-## 2. 背景與解決的核心痛點 (Problem Statement & Background)
-
-在現行香港城市大學的註冊環境中，學生面臨以下三大關鍵痛點：
-
-1. **AIMS 系統「非原子性換課 (Non-Atomic Registration)」的掉座風險：**
-   - 官方 AIMS 系統不支援「條件式換課 (If-and-only-if Swap)」。學生若想以新課替換已選舊課，必須「先在 AIMS 退選 (Drop) 舊課，釋出學分，才能加選 (Add) 新課」。
-   - 一旦新課在加選瞬間名額被搶滿或發生排程衝突，學生舊課席位已失、新課未得，造成無可挽回的選課災難。
-2. **全日制 12.0 學分簽證與修業下限 (Visa Floor) 警報：**
-   - 留學生受學生簽證限制，本地生受全日制學額限制，每學期必須修讀至少 12.0 學分。
-   - 在傳統換課流程中，退選一門 3.0 學分的課程會瞬間使學分由 12.0 降至 9.0，引發學生對違反簽證條例的強烈焦慮。
-3. **選課資訊多方割裂與不透明：**
-   - 課表在 AIMS、課程大綱在 Canvas/學系網站、作業壓力在學生論壇與博客、期末考試日期在學期初往往處於「未知 (Unknown)」狀態。
-
-本原型提供**安全預演機制**：在沙盒內完成所有衝堂檢查、學分防線驗證、實習時間衝突排查與手動 CRN 換課清單產生，徹底消除真實選課時的盲目操作與焦慮。
+The system addresses the high-stakes risks, fragmented information, and interface cognitive overload that undergraduate and non-local students experience during course add/drop periods. Using direct manipulation and a three-state timetable rehearsal model, students can simulate course schedules and swap decisions completely offline before entering course reference numbers (CRNs) into the official university registration system (AIMS).
 
 ---
 
-## 3. 系統三大核心功能分頁 (Three Core Views)
+## 2. Problem statement and background
 
-原型包含三大完整聯動的視圖，透過左側導航欄或鍵盤快捷鍵隨時切換：
+Students navigating course enrollment at CityU face three central challenges:
 
-### View 1: 課表與安全換課預演沙盒 (Rehearsal & Safe-Swap Sandbox)
-* **五天全週課表矩陣 (Mon-Fri 09:00–22:00)：**
-  - **三態課卡視覺設計 (Academic Semantics)：**
-    - `[Enrolled · Protected on AIMS]` (實線實色)：目前正式已註冊並受保護的課程。
-    - `[Marked for Drop · Seat Protected]` (琥珀色虛線外框)：選為欲退選的目標課程，在未正式於 AIMS 操作前席位仍受保護。
-    - `[Staged Preview · Not on AIMS]` (青色虛線幽靈卡)：從選課池預選上課表的替代課程，尚未在 AIMS 提交。
-* **衝突優先級預警橫幅 (#timetableConflictBanner)：**
-  - 當預選課程與現有課程衝突時，系統不會在課表上重疊堆疊混亂色塊，而是彈出引導橫幅，提示衝突時段，並讓使用者依優先級一鍵決定「保留原課」或「將衝突課標記為退選目標」。
-* **校外承諾排程整合 (Outside Commitments Toggle)：**
-  - 支援載入週一至週四的「校外科技實習 (Tech Placement: Mon/Thu 09:00–13:00)」，即時診斷實習與學術課程的重疊衝突。
-* **雙向取消預選 (Bidirectional Un-staging)：**
-  - 解決舊版介面死鎖問題。若未選取退選目標，按鈕不會無故反灰禁用，而是透過動態提示引導選取；已預選上課表的項目會變更為顯眼的紅色 `Unstage Preview` 按鈕，隨時一鍵復原。
-* **鍵盤加速器 (Keyboard Accelerators)：**
-  - 全域按下 `/` 鍵：自動聚焦並全選課程搜尋欄（具備輸入欄位防劫持保護）。
-  - 按下 `Esc` 鍵依嚴格三級優先順序退回：
-    1. 優先級 1：若確認彈窗開啟，則關閉彈窗。
-    2. 優先級 2：若有預演幽靈課程，則取消幽靈課程並退回原課表。
-    3. 優先級 3：清空搜尋輸入欄並取消聚焦。
-* **極速篩選標籤 (Quick Filters)：**
-  - 提供 `All`、`GE Electives`、`STEM Major`、`100% Coursework` (無期末考)、`Open Quota` (有名額)、`No Clash` (無衝堂) 等快捷過濾。
+1. **Non-atomic registration in AIMS.** The university registration system does not offer conditional ("if-and-only-if") swaps. To swap an enrolled course for a new one, a student must first drop the enrolled class in AIMS to free credit quota, then add the new course. If the target course fills or conflicts during the add step, the student loses the original seat and fails to secure the new class.
+2. **Full-time 12.0 credit floor.** Non-local students on student visas and local full-time students must maintain a minimum of 12.0 credits per semester. When a student drops a 3.0 credit course, their registered load temporarily falls to 9.0 credits. This drop creates anxiety about visa compliance and student status.
+3. **Fragmented academic data.** Timetable schedules reside in AIMS, syllabi in Canvas or departmental websites, peer workload feedback on discussion boards, and final exam dates remain unannounced at the start of the term.
 
-### View 2: 課程診斷與檢視器 (Course Inspector & Workload Diagnostics)
-* **動態排課相容性診斷 (Live Schedule Fit Badge)：**
-  - 即時針對當前「預計課表」動態評估：提示 `[STATUS: CURRENTLY ENROLLED]`、`[SCHEDULE FIT: NO CLASH]`、`[TIMETABLE CLASH: OVERLAPS WITH ...]` 或 `[SCHEDULE FIT: FITS CLASSES · OVERLAPS TECH PLACEMENT]`。
-* **先修條件超連結引導 (Constructive Prerequisite Navigation)：**
-  - 遇到先修條件未達成的課程（如 `CS3334` 需要 `CS2201`），提供直接點擊的 `[Inspect Prerequisite CS2201 ->]` 按鈕，瞬間跳轉至該先修課的檢視器頁面；右上角配備 `[<- Return to Weekly Timetable]` 麵包屑導航返回課表。
-* **每週工作量條狀儀表板 (Workload Hour Distribution)：**
-  - 依教學大綱將課堂、助教課、實驗室、專題報告、預習閱讀拆解為具體時數比例（例如 13.0 小時/週）。
-* **認知誠實性邊界 (Epistemic Boundaries - What We Know vs Unknown)：**
-  - 嚴格遵守人機互動認知邊界，對於大綱明確的評分標註來源，對於尚未發布的期末考日期、下學年開課狀況標示 `[EXAM DATE: UNKNOWN · NOT PUBLISHED]`，不以虛假預測誤導學生。
-* **13 週學期里程碑壓力圖 (13-Week Timeline Strip)：**
-  - 標記各週作業、期中考、專題截止日，並與實習時段對照檢視壓力重疊高峰。
-
-### View 3: 城大學生評價網誌 (CityU Student Blogs)
-* **同儕真實反饋與學習建議：**
-  - 收錄高年級學生撰寫的 6 篇經驗網誌（包含非本地生適應、實習平衡、GE 課程選課避坑指南）。
-  - 網誌內附帶 `#EE2000`、`#CS1302` 等課程標籤，點擊直接打開 Course Inspector 深入檢閱對應課程。
-
-### 人類監督閘門與交接卡 (Control Gate & AIMS Quick-Entry Handoff)
-* **安全確認彈窗 (#controlGateModal)：**
-  - 在正式預選前展示清晰的時間、CRN、學分差額變化（Delta），明確警示 AIMS 系統的先退後加非原子特性。
-* **3 步驟手動執行核對清單 (S4: Dialog Closure Checklist)：**
-  - 預演完成後生成 AIMS Quick-Entry Handoff Card，提供一鍵複製 CRN 功能。
-  - 設計三項手動核對項目：
-    1. 已於 AIMS 確認加選課之實時名額。
-    2. 已於 AIMS 使用 Drop CRN 完成舊課退選。
-    3. 已於 AIMS 使用 Add CRN 完成新課加選。
-  - 三者全部勾選後，介面轉變為綠色完成閉合狀態：`[REHEARSAL & AIMS HANDOFF COMPLETE · 12.0 CREDITS SECURED]`，並提供 `[Start New Rehearsal]` 展開下一門課的預演。
+CityU CampuSync provides an offline rehearsal space. Students verify timetable overlaps, audit credit minimums, review personal internship commitments, and generate a manual execution checklist before modifying live enrollments.
 
 ---
 
-## 4. 人機互動理論實踐 (HCI Heuristics & Rules Mapping)
+## 3. Three core views
 
-本系統的每一個設計決策皆嚴格對應 HCI 兩大經典架構：
+The prototype organizes planning into three interconnected views, switchable through the navigation bar or keyboard shortcuts.
 
-| 人機互動原則 | 原型具體功能實現 | 對應模組與位置 |
+### View 1: Rehearsal and safe-swap sandbox
+* **Weekly timetable matrix (Monday to Friday, 09:00 to 22:00).**
+  - **Three-state card semantics:**
+    - `[Enrolled · Protected on AIMS]` (solid border and background): Courses currently registered in AIMS.
+    - `[Marked for Drop · Seat Protected]` (amber dashed border): Courses marked for release during a swap. The seat remains protected until manually dropped in AIMS.
+    - `[Staged Preview · Not on AIMS]` (dashed ghost card): Candidate courses placed on the timetable from the catalogue. These courses are not yet submitted to AIMS.
+* **Conflict banner (`#timetableConflictBanner`).**
+  When a candidate course conflicts with an enrolled class, the timetable displays a targeted conflict banner rather than overlapping cards. Students can keep the enrolled course or mark the conflicting course for drop with one click.
+* **Personal commitments toggle.**
+  Students can load external commitments, such as an off-campus tech placement (Monday and Thursday, 09:00 to 13:00), to check for schedule overlaps with academic classes.
+* **Bidirectional un-staging.**
+  Staged courses show an active `Unstage Preview` button on both catalogue cards and the shortlist tray. Students can remove candidate courses from the timetable draft at any point.
+* **Keyboard accelerators.**
+  - Press `/` to focus and select the course search input from anywhere in the application.
+  - Press `Esc` to step back through a three-level hierarchy:
+    1. Close open modal dialogs.
+    2. Cancel staged preview courses and return to the baseline schedule.
+    3. Clear the search input and remove field focus.
+* **Quick filter pills.**
+  Students can filter the catalogue using preset pills: `All`, `GE Electives`, `STEM Major`, `100% Coursework` (no final exam), `Open Quota`, and `No Clash`.
+
+### View 2: Course inspector and workload diagnostics
+* **Live schedule fit badge.**
+  The inspector evaluates candidate courses against the active timetable draft in real time. Badges indicate status: `[STATUS: CURRENTLY ENROLLED]`, `[SCHEDULE FIT: NO CLASH]`, `[TIMETABLE CLASH: OVERLAPS WITH ...]`, or `[SCHEDULE FIT: FITS CLASSES · OVERLAPS TECH PLACEMENT]`.
+* **Prerequisite navigation.**
+  When an applicant has not met course prerequisites (for example, `CS3334` requiring `CS2201`), the card provides an `[Inspect Prerequisite CS2201 ->]` action. This navigates directly to the required course in the inspector. A breadcrumb link (`[<- Return to Weekly Timetable]`) returns to the schedule.
+* **Weekly workload distribution.**
+  The inspector divides weekly hours across lectures, tutorials, labs, project work, and preparation readings based on syllabus specifications.
+* **Epistemic boundaries (Known vs Unknown data).**
+  The interface distinguishes between syllabus-verified data and missing information. When exam dates or future term offerings are not yet published, the system displays `[EXAM DATE: UNKNOWN · NOT PUBLISHED]` instead of speculative estimates.
+* **13-week semester timeline.**
+  A milestone view displays assignments, midterms, and project deadlines across the term alongside personal commitments to highlight peak workload periods.
+
+### View 3: Student experience blogs
+* **Peer feedback and advice.**
+  Six student articles offer practical advice on navigating non-local student adjustments, balancing internships with coursework, and selecting Gateway Education (GE) electives.
+* **Integrated course tags.**
+  Articles feature course tags (such as `#EE2000` and `#CS1302`) that open the Course Inspector directly for the referenced class.
+
+### Control gate and AIMS handoff
+* **Verification modal (`#controlGateModal`).**
+  Before staging or confirming changes, this dialog summarizes time deltas, CRNs, and net credit changes. It explicitly reminds students of the non-atomic nature of live AIMS registration.
+* **Three-step manual execution checklist.**
+  The handoff card provides one-click copying for course reference numbers (CRNs) and presents three manual verification steps:
+  1. Confirm live seat quota for the add course in AIMS.
+  2. Drop the old course in AIMS using the Drop CRN.
+  3. Add the new course in AIMS using the Add CRN.
+  When a student checks all three items, the interface confirms completion with `[REHEARSAL & AIMS HANDOFF COMPLETE · 12.0 CREDITS SECURED]` and offers a `[Start New Rehearsal]` button for subsequent swaps.
+
+---
+
+## 4. Human-computer interaction heuristics mapping
+
+Every design decision maps to established interaction frameworks from Jakob Nielsen and Ben Shneiderman:
+
+| HCI Heuristic / Rule | Interface Implementation | Code Component / Location |
 | :--- | :--- | :--- |
-| **N1 / S3: 系統狀態可見度與反饋** | 輕量浮動狀態通知引擎 (`showToast`)，操作即時提示，防止計時器碰撞；上方學分即時警報。 | 右下角 Toast；頂部 `#creditIndicator` |
-| **N2 & N4 / S1: 真實世界對照與標準** | 捨棄內部工程術語，採用 CityU 官方真實術語 (`Protected on AIMS`, `Marked for Drop`)。 | 課表頂部圖例、課卡標籤 |
-| **N3 / S6: 使用者控制自由與易撤銷** | 課卡與候選清單具備雙向 `Unstage Preview` 按鈕；具備一鍵 `Revert Schedule` 復原基準。 | 搜尋列表、Shortlist 托盤、頂部按鈕 |
-| **N5 / S5: 防錯設計 (Error Prevention)** | 12.0 學分簽證下限鎖定、時間衝突橫幅選取優先級而非卡塊疊蓋混亂。 | `#timetableConflictBanner`、驗證引擎 |
-| **N6 / S8: 辨識取代記憶** | 課程檢視器具備動態排課適配度診斷標籤；確認彈窗詳細列出時間與 CRN 對比。 | `#inspBadges`、`#controlGateModal` |
-| **N7 / S2: 靈活性與加速器** | `/` 搜尋快捷鍵 (含欄位保護)、`Esc` 階層式退出、`100% Coursework` 一鍵篩選。 | 全域鍵盤監聽、`#filterPillsContainer` |
-| **N9: 協助辨識與診斷錯誤** | 未滿足先修條件時提供 `[Inspect Prerequisite CS2201 ->]` 可點擊引導；主修限制給予具體申請表指示。 | 搜尋項目錯誤提示、先修條件樹 |
-| **S4: 對話設計產生閉合感 (Closure)** | AIMS 交接卡提供 3 步互動勾選核對清單，全部勾選後進入綠色成就閉合狀態。 | `#liveAuditContainer`、`#startNewRehearsalBtn` |
+| **N1 / S3: Visibility of system status** | Floating toast engine (`showToast`) provides immediate operation feedback without timer collisions. Real-time credit meter monitors credit load. | `showToast` utility, `#creditIndicator` |
+| **N2 & N4 / S1: Match real world and consistency** | Uses authentic CityU academic terminology (`Protected on AIMS`, `Marked for Drop`, `CRN`, `Area 1/2/3 GE`) instead of technical database terms. | Timetable legend, course cards, filter pills |
+| **N3 / S6: User control and freedom** | Bidirectional un-staging buttons in catalogue cards and shortlist tray. A global `Revert Schedule` button restores the baseline enrollment. | `#revertScheduleBtn`, catalogue action toggles |
+| **N5 / S5: Error prevention** | Enforces the 12.0 credit minimum floor. Displays the guided conflict banner instead of overlapping schedule cards. | `#timetableConflictBanner`, credit validation logic |
+| **N6 / S8: Recognition rather than recall** | Dynamic schedule fit badges indicate conflict reasons. Control Gate dialog provides a side-by-side comparison of drop and add courses. | `#inspBadges`, `#controlGateModal` |
+| **N7 / S2: Flexibility and efficiency** | Press `/` to focus search with field protection, use `Esc` for hierarchical dismissal, and apply the `100% Coursework` filter pill. | Window keyboard listeners, `#filterPillsContainer` |
+| **N9: Help users recognize and recover from errors** | Provides clickable prerequisite links (`[Inspect Prerequisite CS2201 ->]`) and clear instructions for major-restricted courses. | Prerequisite inspector routing, error banners |
+| **S4: Design dialogs to yield closure** | Interactive three-step checklist on the AIMS handoff card leads to an explicit green completion state. | `#liveAuditContainer`, `#startNewRehearsalBtn` |
 
 ---
 
-## 5. 四大評分嚴格限制 (4 Non-Negotiable Grading Rules)
+## 5. Core evaluation constraints
 
-本專案完全遵守課程大綱與教授嚴格評分指引：
+The project follows five strict academic constraints:
 
-1. **Zero Auth (零登入)**：無登入/註冊門檻，啟動即進入主人物誌 Marcus Li 的真實排課工作區。
-2. **100% Offline Simulation (完全離線)**：純前端單一檔案架構，無後端依賴，不發起任何對城大 AIMS 伺服器的非授權網路爬蟲或寫入。
-3. **No GPA Predictors / Sliders (無虛假預測器)**：堅守認知誠實性，不提供任何偽科學的成績滑桿預測，僅呈現教學大綱靜態數據。
-4. **Human-in-the-Loop Control Gate (人機協同控制閘門)**：確認彈窗與手動核對清單，確保最終權限與決策始終在學生手中。
-5. **Strict Zero Emoji Policy (嚴格零 Emoji 原則)**：全站介面文字、樣式、回饋提示、測試腳本均使用乾淨排版與清晰符號，完全禁用任何彩色表情符號 (Emoji)。
+1. **Zero auth.** The prototype requires no account creation or login screen. It opens directly into the workspace of primary persona Marcus Li.
+2. **100% offline simulation.** Single-page and client-side architecture with no external backend dependencies. The system performs no scraping or unauthorized writes to university servers.
+3. **No GPA predictors.** The system presents syllabus facts and workload distributions. It avoids speculative grade slider widgets.
+4. **Human-in-the-loop control gate.** The tool acts as a rehearsal sandbox. Students retain final decision authority and manually enter verified CRNs into AIMS.
+5. **Strict zero emoji policy.** All interface typography, badges, notifications, and tests use clean text and standard symbols. Colored emojis are strictly avoided across the codebase.
 
 ---
 
-## 6. 檔案架構與啟動方式 (File Structure & Quick Start)
+## 6. File structure and quick start
 
-### 檔案位置
-* **主程式檔案：** [index.html](file:///Users/wat2002221/Desktop/Team%207%20group%20project/index.html)
-* **團隊交付目錄鏡像：** [Master_Build_Code/index.html](file:///Users/wat2002221/Desktop/Team%207%20group%20project/google%20drive/01_Master_Prototype_&_Code_%5BJimmy%5D/Master_Build_Code/index.html)
-* **規格與實作計畫：**
-  - 規格文件：`docs/superpowers/specs/2026-11-12-nielsen-shneiderman-ux-improvements-design.md`
-  - 實作計畫：`docs/superpowers/plans/2026-11-12-nielsen-shneiderman-ux-improvements-plan.md`
-* **自動化測試套件：**
-  - `tests/*.test.mjs` (包含 Tasks 1–8 共 23 個自動化測試單元)
+### File locations
+* **Offline single-file prototype:** `index.html`
+* **Master build mirror:** `google drive/01_Master_Prototype_&_Code_[Jimmy]/Master_Build_Code/index.html`
+* **Modern React and Vite application:** `Design System SaaS Landing Page/`
+* **Design specifications and sprint plans:**
+  - Audit report: `docs/HCI_PROOFREADING_AUDIT_REPORT.md`
+  - Design specification: `docs/superpowers/specs/2026-11-12-nielsen-shneiderman-ux-improvements-design.md`
+  - Implementation plan: `docs/superpowers/plans/2026-11-12-nielsen-shneiderman-ux-improvements-plan.md`
+* **Automated test suite:**
+  - `tests/*.test.mjs` (48 automated test units across 13 test suites)
 
-### 如何啟動 (How to Run)
+### Run the prototype
 
-本專案現已全面整合 **Design System SaaS Landing Page & Dashboard (React + Vite)** 與 **單一檔案離線版本 (index.html)** 雙架構：
+You can run the project using either the modern React and Vite application or the single-file offline prototype:
 
-1. **方法一：啟動頂級 SaaS React + Vite 現代化介面（推薦）：**
-   在終端機中執行：
+1. **Option 1: Modern React and Vite application (Recommended)**
+   Run the following command in the project root:
    ```bash
    npm start
-   # 或
+   # or
    npm run dev
    ```
-   - 伺服器將在 `http://localhost:5173` 啟動，並自動為你在預設瀏覽器中開啟！
-   - 享受 `Design System SaaS Landing Page` 的頂級 Figma 視覺（溫潤米白羊皮紙底色、曜石黑深色側邊欄、螢光檸檬黃高亮導航、3D 浮動課表場景、即時衝突雷達與人機協同控制閘門）。
+   The development server starts at `http://localhost:5173` and opens automatically in your default browser.
 
-2. **方法二：啟動 100% 離線單一檔案版本 (Single-File Archive)：**
+2. **Option 2: Single-file offline archive**
+   Run the local static server:
    ```bash
    npm run serve:singlefile
-   # 或直接使用瀏覽器雙擊開啟 index.html
    ```
+   You can also open `index.html` directly in any modern web browser.
 
-### 執行自動化測試與驗證
+### Run automated tests
+
+Run all 48 test units using Node.js built-in test runner:
 ```bash
-# 執行全部 38 個自動化測試單元
 npm test
 ```
 
 ---
 
-## 7. 團隊角色分工 (Team #7 Roster)
+## 7. Team 7 engineering roster
 
-* **Lam Kin (Jimmy) — 原型主工程師 (Lead Prototype Developer):** 負責核心原型架構開發、HCI 啟發式評估優化、自動化測試與代碼部署。
-* **Aadib — 技術總監與系統架構師 (Technical Lead & Architect):** 負責敏捷 Backlog 維護、系統架構定義、報告章節 2/4/5。
-* **Praneel — 影像製作與簡報主管 (Video Producer & Presentation Lead):** 負責展示投影片製作、演示影片剪輯與介面視覺錄製。
-* **Hudaifa — 使用者研究主管 (Usability Testing Lead & Moderator):** 負責主持 3 場真人使用者測試實驗、人物誌建構、報告章節 1/3.1–3.2。
-* **Louis — 數據分析師與主報告編撰 (Data Analyst & Master Report Lead):** 負責即時測試紀錄、SUS 易用性評分統計計算、報告章節 3.3–3.4/6。
+* **Lam Kin (Jimmy) — Lead Prototype Developer:** Built the prototype architecture, implemented HCI heuristic refinements, authored automated test suites, and managed deployment.
+* **Aadib — Technical Lead and Systems Architect:** Managed the agile backlog, established system architecture, and authored report sections 2, 4, and 5.
+* **Praneel — Video Producer and Presentation Lead:** Created the presentation slide deck, edited demonstration videos, and captured interface recordings.
+* **Hudaifa — Usability Testing Lead and Moderator:** Moderated usability evaluation sessions, developed user personas, and authored report sections 1, 3.1, and 3.2.
+* **Louis — Data Analyst and Master Report Lead:** Logged testing observations, computed System Usability Scale (SUS) scores, and authored report sections 3.3, 3.4, and 6.
